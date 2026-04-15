@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, Users, Search, Shield } from "lucide-react";
+import { Plus, Trash2, Users, Search, Shield, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import ImportWorkersDialog from "@/components/ImportWorkersDialog";
 
 const emptyWorker: WorkerInsert = {
   full_name: "", phone: "", position: "", department: "", address: "", matricule: "",
