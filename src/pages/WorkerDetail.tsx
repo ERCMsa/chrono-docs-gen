@@ -1,15 +1,17 @@
 import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getWorker, getDocumentsByWorker, updateWorker, DOCUMENT_TYPES, type WorkerInsert } from "@/lib/supabase-helpers";
+import { getWorker, getDocumentsByWorker, updateWorker, getAcomptes, DOCUMENT_TYPES, type WorkerInsert } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, FileText, Users, Shield, CheckCircle, Clock, Pencil } from "lucide-react";
+import { ArrowLeft, FileText, Users, Shield, CheckCircle, Clock, Pencil, Wallet, TrendingUp, TrendingDown, Eye } from "lucide-react";
 import { toast } from "sonner";
+
+const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(n);
 
 export default function WorkerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,12 @@ export default function WorkerDetail() {
   const { data: documents, isLoading: loadingDocs } = useQuery({
     queryKey: ["worker-documents", id],
     queryFn: () => getDocumentsByWorker(id!),
+    enabled: !!id,
+  });
+
+  const { data: acomptes } = useQuery({
+    queryKey: ["worker-acomptes", id],
+    queryFn: () => getAcomptes(id!),
     enabled: !!id,
   });
 
