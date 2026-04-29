@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      absences: {
+        Row: {
+          absence_date: string
+          created_at: string
+          id: string
+          reason: string | null
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          absence_date: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          absence_date?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: []
+      }
       acompte_transactions: {
         Row: {
           amount: number
@@ -57,6 +84,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      conges: {
+        Row: {
+          conge_type: string
+          created_at: string
+          end_date: string
+          id: string
+          reason: string | null
+          start_date: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          conge_type?: string
+          created_at?: string
+          end_date: string
+          id?: string
+          reason?: string | null
+          start_date: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          conge_type?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          reason?: string | null
+          start_date?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: []
       }
       documents: {
         Row: {
