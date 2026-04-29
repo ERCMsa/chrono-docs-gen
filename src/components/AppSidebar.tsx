@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, LogOut, LogIn, AlertTriangle, FilePlus, BarChart3, FileText, X, Wallet } from "lucide-react";
+import { Users, LayoutDashboard, LogOut, LogIn, AlertTriangle, FilePlus, BarChart3, FileText, X, Wallet, CalendarX, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoErcm from "@/assets/logo-ercm.png";
 
@@ -13,6 +13,8 @@ const navItems = [
   { to: "/generate/bon_rentree", label: "Bon de rentrée", icon: LogIn },
   { to: "/generate/avertissement", label: "Avertissement", icon: AlertTriangle },
   { to: "/acomptes", label: "Acomptes", icon: Wallet },
+  { to: "/absences", label: "Absences", icon: CalendarX },
+  { to: "/conges", label: "Congés", icon: CalendarRange },
 ];
 
 interface AppSidebarProps {

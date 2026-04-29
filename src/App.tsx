@@ -15,6 +15,8 @@ import Statistics from "./pages/Statistics";
 import NotFound from "./pages/NotFound";
 import Acomptes from "./pages/Acomptes";
 import AcompteView from "./pages/AcompteView";
+import Absences from "./pages/Absences";
+import Conges from "./pages/Conges";
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const queryClient = new QueryClient();
@@ -38,6 +40,8 @@ const App = () => (
                 <Route path="/statistics" element={<Statistics />} />
                 <Route path="/acomptes" element={<Acomptes />} />
                 <Route path="/acomptes/:id" element={<AcompteView />} />
+                <Route path="/absences" element={<Absences />} />
+                <Route path="/conges" element={<Conges />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
