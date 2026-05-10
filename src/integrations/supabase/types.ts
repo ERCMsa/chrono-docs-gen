@@ -39,7 +39,15 @@ export type Database = {
           updated_at?: string
           worker_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "absences_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       acompte_transactions: {
         Row: {
@@ -116,7 +124,15 @@ export type Database = {
           updated_at?: string
           worker_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conges_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -181,8 +197,11 @@ export type Database = {
           cin: string | null
           created_at: string
           current_balance: number
+          date_debut_contrat: string | null
+          date_fin_contrat: string | null
           date_naissance: string | null
           department: string | null
+          duree_contrat: string | null
           full_name: string
           hire_date: string | null
           id: string
@@ -203,8 +222,11 @@ export type Database = {
           cin?: string | null
           created_at?: string
           current_balance?: number
+          date_debut_contrat?: string | null
+          date_fin_contrat?: string | null
           date_naissance?: string | null
           department?: string | null
+          duree_contrat?: string | null
           full_name: string
           hire_date?: string | null
           id?: string
@@ -225,8 +247,11 @@ export type Database = {
           cin?: string | null
           created_at?: string
           current_balance?: number
+          date_debut_contrat?: string | null
+          date_fin_contrat?: string | null
           date_naissance?: string | null
           department?: string | null
+          duree_contrat?: string | null
           full_name?: string
           hire_date?: string | null
           id?: string
