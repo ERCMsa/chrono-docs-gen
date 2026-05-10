@@ -1,15 +1,17 @@
-import { useParams, Link } from "react-router-dom";
-import { useState } from "react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getWorker, getDocumentsByWorker, updateWorker, getAcomptes, getAbsences, getConges, congeDuration, CONGE_TYPES, DOCUMENT_TYPES, type WorkerInsert } from "@/lib/supabase-helpers";
+import { getWorker, getDocumentsByWorker, updateWorker, deleteWorker, getAcomptes, getAbsences, getConges, congeDuration, CONGE_TYPES, DOCUMENT_TYPES } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, FileText, Users, Shield, CheckCircle, Clock, Pencil, Wallet, TrendingUp, TrendingDown, Eye, CalendarX, CalendarRange } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, FileText, Users, Shield, CheckCircle, Clock, Pencil, Wallet, TrendingUp, TrendingDown, Eye, CalendarX, CalendarRange, Trash2, RefreshCw, AlertTriangle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { CONTRACT_DURATIONS, computeEndDate, getContractStatus, formatDateFR, durationLabel } from "@/lib/contract-utils";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(n);
 
