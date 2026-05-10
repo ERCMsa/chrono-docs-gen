@@ -75,13 +75,33 @@ export default function WorkerDetail() {
       numero_social: (worker as any).numero_social ?? "",
       numero_compte: (worker as any).numero_compte ?? "",
       acte_naissance: (worker as any).acte_naissance ?? "",
+      duree_contrat: (worker as any).duree_contrat ?? "",
+      date_debut_contrat: (worker as any).date_debut_contrat ?? "",
     });
     setIsDeptHead(worker.is_department_head ?? false);
     setEditOpen(true);
   };
 
+  useEffect(() => {
+    if (searchParams.get("edit") === "1" && worker && !editOpen) {
+      openEdit();
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worker]);
+
   const editMutation = useMutation({
-    mutationFn: () => updateWorker(id!, { ...editForm, is_department_head: isDeptHead } as any),
+    mutationFn: () => {
+      const payload: any = { ...editForm, is_department_head: isDeptHead };
+      if (payload.duree_contrat && payload.date_debut_contrat) {
+        payload.date_fin_contrat = computeEndDate(payload.date_debut_contrat, payload.duree_contrat);
+      } else {
+        payload.date_fin_contrat = null;
+      }
+      return updateWorker(id!, payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["worker", id] });
       queryClient.invalidateQueries({ queryKey: ["workers"] });
@@ -89,6 +109,31 @@ export default function WorkerDetail() {
       toast.success("Employé mis à jour");
     },
     onError: () => toast.error("Erreur lors de la mise à jour"),
+  });
+
+  const renewMutation = useMutation({
+    mutationFn: () => {
+      const start = new Date().toISOString().slice(0, 10);
+      const end = computeEndDate(start, renewDuration);
+      return updateWorker(id!, { duree_contrat: renewDuration, date_debut_contrat: start, date_fin_contrat: end } as any);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["worker", id] });
+      queryClient.invalidateQueries({ queryKey: ["workers"] });
+      setRenewOpen(false);
+      toast.success("Contrat renouvelé");
+    },
+    onError: () => toast.error("Erreur lors du renouvellement"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteWorker(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workers"] });
+      toast.success("Employé supprimé");
+      navigate("/workers");
+    },
+    onError: () => toast.error("Erreur lors de la suppression"),
   });
 
   const handleEditSubmit = (e: React.FormEvent) => {
