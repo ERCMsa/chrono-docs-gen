@@ -146,6 +146,7 @@ export default function WorkerDetail() {
   if (!worker) return <p className="text-destructive">Employé introuvable</p>;
 
   const isBon = (type: string) => type === "bon_sortie" || type === "bon_rentree";
+  const contractStatus = getContractStatus((worker as any).date_fin_contrat);
 
   return (
     <div className="space-y-6">
