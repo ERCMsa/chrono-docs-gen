@@ -271,6 +271,30 @@ export default function WorkerDetail() {
                 </div>
               </div>
 
+              {/* Contrat */}
+              <div>
+                <h3 className="text-sm font-semibold text-primary mb-3">Contrat</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Durée</Label>
+                    <Select value={editForm.duree_contrat ?? ""} onValueChange={(v) => setEditForm((p) => ({ ...p, duree_contrat: v }))}>
+                      <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                      <SelectContent>
+                        {CONTRACT_DURATIONS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date début</Label>
+                    <Input type="date" value={editForm.date_debut_contrat ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_debut_contrat: e.target.value }))} className="h-11" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
+                    <Input type="date" disabled value={(editForm.duree_contrat && editForm.date_debut_contrat) ? computeEndDate(editForm.date_debut_contrat, editForm.duree_contrat) : ""} className="h-11" />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
                 <Switch checked={isDeptHead} onCheckedChange={setIsDeptHead} />
                 <div>
