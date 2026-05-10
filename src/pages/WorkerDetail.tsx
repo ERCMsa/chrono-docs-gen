@@ -17,8 +17,13 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigit
 
 export default function WorkerDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewDuration, setRenewDuration] = useState<string>("1_an");
 
   const { data: worker, isLoading: loadingWorker } = useQuery({
     queryKey: ["worker", id],
