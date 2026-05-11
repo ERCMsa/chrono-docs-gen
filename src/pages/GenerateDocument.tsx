@@ -144,13 +144,14 @@ function ContractForm({ formData, setFormData, worker }: {
     }
   }, [worker?.id]);
 
-  // Auto-calculate end date
+  // Auto-calculate end date when start date or duration changes
   useEffect(() => {
+    const m = parseInt(formData.duree_mois || "12", 10) || 12;
     if (formData.date_debut) {
-      const end = calcEndDate(formData.date_debut);
-      setFormData(p => ({ ...p, date_fin: end }));
+      const end = computeContractEnd(formData.date_debut, m);
+      setFormData(p => (p.date_fin === end ? p : { ...p, date_fin: end }));
     }
-  }, [formData.date_debut]);
+  }, [formData.date_debut, formData.duree_mois]);
 
   return (
     <div className="space-y-4">
