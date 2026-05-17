@@ -275,7 +275,7 @@ export default function WorkerDetail() {
               {/* Contrat */}
               <div>
                 <h3 className="text-sm font-semibold text-primary mb-3">Contrat</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Durée</Label>
                     <Select value={editForm.duree_contrat ?? ""} onValueChange={(v) => setEditForm((p) => ({ ...p, duree_contrat: v }))}>
@@ -292,6 +292,10 @@ export default function WorkerDetail() {
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
                     <Input type="date" disabled value={(editForm.duree_contrat && editForm.date_debut_contrat) ? computeEndDate(editForm.date_debut_contrat, editForm.duree_contrat) : ""} className="h-11" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
+                    <Input type="date" value={(editForm as any).date_demission ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_demission: e.target.value }))} className="h-11" />
                   </div>
                 </div>
               </div>
