@@ -59,7 +59,8 @@ function rowToWorker(row: Record<string, any>): WorkerInsert {
     is_department_head: ["oui", "yes", "true", "1"].includes(
       (row["Chef de Service (Oui/Non)"] || "").toString().toLowerCase()
     ),
-  };
+    date_demission: parseExcelDate(row["Date de Démission"]),
+  } as WorkerInsert;
 }
 
 export default function ImportWorkersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
