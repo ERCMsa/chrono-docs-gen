@@ -101,6 +101,7 @@ export default function WorkerDetail() {
       } else {
         payload.date_fin_contrat = null;
       }
+      if (!payload.date_demission) payload.date_demission = null;
       return updateWorker(id!, payload);
     },
     onSuccess: () => {
