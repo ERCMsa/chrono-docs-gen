@@ -411,6 +411,7 @@ export default function WorkerDetail() {
           ["Durée contrat", durationLabel((worker as any).duree_contrat)],
           ["Début contrat", (worker as any).date_debut_contrat ? formatDateFR((worker as any).date_debut_contrat) : null],
           ["Fin contrat", (worker as any).date_fin_contrat ? formatDateFR((worker as any).date_fin_contrat) : null],
+          ["Date démission", (worker as any).date_demission ? formatDateFR((worker as any).date_demission) : null],
         ].map(([label, value]) => (
           <div key={label as string}>
             <p className="text-xs text-muted-foreground">{label as string}</p>
