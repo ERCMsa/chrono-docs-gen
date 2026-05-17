@@ -77,6 +77,7 @@ export default function WorkerDetail() {
       acte_naissance: (worker as any).acte_naissance ?? "",
       duree_contrat: (worker as any).duree_contrat ?? "",
       date_debut_contrat: (worker as any).date_debut_contrat ?? "",
+      date_demission: (worker as any).date_demission ?? "",
     });
     setIsDeptHead(worker.is_department_head ?? false);
     setEditOpen(true);
