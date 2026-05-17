@@ -161,7 +161,7 @@ export default function Workers() {
 
               <div>
                 <h3 className="text-sm font-semibold text-primary mb-3">Contrat</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Durée</Label>
                     <Select value={form.duree_contrat ?? ""} onValueChange={(v) => updateField("duree_contrat", v)}>
@@ -178,6 +178,10 @@ export default function Workers() {
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
                     <Input type="date" disabled value={(form.duree_contrat && form.date_debut_contrat) ? computeEndDate(form.date_debut_contrat, form.duree_contrat) : ""} className="h-11" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
+                    <Input type="date" value={(form as any).date_demission ?? ""} onChange={(e) => updateField("date_demission" as any, e.target.value)} className="h-11" />
                   </div>
                 </div>
               </div>

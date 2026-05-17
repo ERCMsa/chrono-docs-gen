@@ -198,6 +198,7 @@ export type Database = {
           created_at: string
           current_balance: number
           date_debut_contrat: string | null
+          date_demission: string | null
           date_fin_contrat: string | null
           date_naissance: string | null
           department: string | null
@@ -223,6 +224,7 @@ export type Database = {
           created_at?: string
           current_balance?: number
           date_debut_contrat?: string | null
+          date_demission?: string | null
           date_fin_contrat?: string | null
           date_naissance?: string | null
           department?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           created_at?: string
           current_balance?: number
           date_debut_contrat?: string | null
+          date_demission?: string | null
           date_fin_contrat?: string | null
           date_naissance?: string | null
           department?: string | null

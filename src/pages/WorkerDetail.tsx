@@ -77,6 +77,7 @@ export default function WorkerDetail() {
       acte_naissance: (worker as any).acte_naissance ?? "",
       duree_contrat: (worker as any).duree_contrat ?? "",
       date_debut_contrat: (worker as any).date_debut_contrat ?? "",
+      date_demission: (worker as any).date_demission ?? "",
     });
     setIsDeptHead(worker.is_department_head ?? false);
     setEditOpen(true);
@@ -100,6 +101,7 @@ export default function WorkerDetail() {
       } else {
         payload.date_fin_contrat = null;
       }
+      if (!payload.date_demission) payload.date_demission = null;
       return updateWorker(id!, payload);
     },
     onSuccess: () => {
@@ -274,7 +276,7 @@ export default function WorkerDetail() {
               {/* Contrat */}
               <div>
                 <h3 className="text-sm font-semibold text-primary mb-3">Contrat</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Durée</Label>
                     <Select value={editForm.duree_contrat ?? ""} onValueChange={(v) => setEditForm((p) => ({ ...p, duree_contrat: v }))}>
@@ -291,6 +293,10 @@ export default function WorkerDetail() {
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
                     <Input type="date" disabled value={(editForm.duree_contrat && editForm.date_debut_contrat) ? computeEndDate(editForm.date_debut_contrat, editForm.duree_contrat) : ""} className="h-11" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
+                    <Input type="date" value={(editForm as any).date_demission ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_demission: e.target.value }))} className="h-11" />
                   </div>
                 </div>
               </div>
@@ -405,6 +411,7 @@ export default function WorkerDetail() {
           ["Durée contrat", durationLabel((worker as any).duree_contrat)],
           ["Début contrat", (worker as any).date_debut_contrat ? formatDateFR((worker as any).date_debut_contrat) : null],
           ["Fin contrat", (worker as any).date_fin_contrat ? formatDateFR((worker as any).date_fin_contrat) : null],
+          ["Date démission", (worker as any).date_demission ? formatDateFR((worker as any).date_demission) : null],
         ].map(([label, value]) => (
           <div key={label as string}>
             <p className="text-xs text-muted-foreground">{label as string}</p>
