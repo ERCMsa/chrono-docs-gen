@@ -129,7 +129,7 @@ export default function ImportWorkersDialog({ open, onOpenChange }: { open: bool
     const ws = XLSX.utils.aoa_to_sheet([headers, [
       "EMP-001", "Ahmed Benali", "1990-05-15", "Alger", "Masculin", "Marié(e)",
       "123 Rue Example", "06 12 34 56 78", "Technicien", "Production",
-      "2020-01-15", "123456789", "9876543210", "AB-1234", "Non",
+      "2020-01-15", "123456789", "9876543210", "AB-1234", "Non", "",
     ]]);
     const colWidths = headers.map((h) => ({ wch: Math.max(h.length + 4, 18) }));
     ws["!cols"] = colWidths;
