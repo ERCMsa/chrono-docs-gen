@@ -121,13 +121,21 @@ function ContractForm({ formData, setFormData, worker }: {
   const inp = (key: string, label: string, opts?: { type?: string; placeholder?: string }) => (
     <div>
       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">{label}</Label>
-      <Input
-        type={opts?.type ?? "text"}
-        value={formData[key] ?? ""}
-        onChange={(e) => set(key)(e.target.value)}
-        placeholder={opts?.placeholder}
-        className="h-11"
-      />
+      {opts?.type === "date" ? (
+        <DateInput
+          value={formData[key] ?? ""}
+          onChange={(e) => set(key)(e.target.value)}
+          className="h-11"
+        />
+      ) : (
+        <Input
+          type={opts?.type ?? "text"}
+          value={formData[key] ?? ""}
+          onChange={(e) => set(key)(e.target.value)}
+          placeholder={opts?.placeholder}
+          className="h-11"
+        />
+      )}
     </div>
   );
 
@@ -412,6 +420,12 @@ export default function GenerateDocument() {
                       onChange={(e) => setFormData((p) => ({ ...p, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
                       rows={3}
+                    />
+                  ) : field.type === "date" ? (
+                    <DateInput
+                      value={formData[field.key] ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, [field.key]: e.target.value }))}
+                      className="h-11"
                     />
                   ) : (
                     <Input
