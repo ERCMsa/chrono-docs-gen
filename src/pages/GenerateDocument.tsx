@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/ui/date-input";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -120,13 +121,21 @@ function ContractForm({ formData, setFormData, worker }: {
   const inp = (key: string, label: string, opts?: { type?: string; placeholder?: string }) => (
     <div>
       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">{label}</Label>
-      <Input
-        type={opts?.type ?? "text"}
-        value={formData[key] ?? ""}
-        onChange={(e) => set(key)(e.target.value)}
-        placeholder={opts?.placeholder}
-        className="h-11"
-      />
+      {opts?.type === "date" ? (
+        <DateInput
+          value={formData[key] ?? ""}
+          onChange={(e) => set(key)(e.target.value)}
+          className="h-11"
+        />
+      ) : (
+        <Input
+          type={opts?.type ?? "text"}
+          value={formData[key] ?? ""}
+          onChange={(e) => set(key)(e.target.value)}
+          placeholder={opts?.placeholder}
+          className="h-11"
+        />
+      )}
     </div>
   );
 
@@ -362,7 +371,7 @@ export default function GenerateDocument() {
                   <div><Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">رقم العقد المرجعي</Label>
                     <Input value={avenant.numContratRef} onChange={(e) => updateAvenant("numContratRef", e.target.value)} className="h-11" /></div>
                   <div><Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">تاريخ التحرير</Label>
-                    <Input type="date" value={avenant.dateSign} onChange={(e) => updateAvenant("dateSign", e.target.value)} className="h-11" /></div>
+                    <DateInput value={avenant.dateSign} onChange={(e) => updateAvenant("dateSign", e.target.value)} className="h-11" /></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div><Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">الأجر القاعدي (DA)</Label>
@@ -411,6 +420,12 @@ export default function GenerateDocument() {
                       onChange={(e) => setFormData((p) => ({ ...p, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
                       rows={3}
+                    />
+                  ) : field.type === "date" ? (
+                    <DateInput
+                      value={formData[field.key] ?? ""}
+                      onChange={(e) => setFormData((p) => ({ ...p, [field.key]: e.target.value }))}
+                      className="h-11"
                     />
                   ) : (
                     <Input

@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/ui/date-input";
 import { formatDateFR } from "@/lib/date-utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -135,11 +136,11 @@ export default function Conges() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Du *</Label>
-                  <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-11" />
+                  <DateInput value={start} onChange={(e) => setStart(e.target.value)} className="h-11" />
                 </div>
                 <div>
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Au *</Label>
-                  <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="h-11" min={start} />
+                  <DateInput value={end} onChange={(e) => setEnd(e.target.value)} className="h-11" />
                 </div>
               </div>
               {duration > 0 && (
@@ -185,11 +186,11 @@ export default function Conges() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Du</Label>
-          <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9 w-[150px]" />
+          <DateInput value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9 w-[150px]" />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Au</Label>
-          <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9 w-[150px]" />
+          <DateInput value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9 w-[150px]" />
         </div>
         <div className="ml-auto text-sm text-muted-foreground">
           Total : <span className="font-semibold text-foreground">{filtered.length}</span>

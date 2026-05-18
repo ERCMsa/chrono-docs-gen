@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/ui/date-input";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getWorkers, createWorker, type WorkerInsert } from "@/lib/supabase-helpers";
@@ -106,7 +107,7 @@ export default function Workers() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date de Naissance</Label>
-                    <Input type="date" value={form.date_naissance ?? ""} onChange={(e) => updateField("date_naissance", e.target.value)} className="h-11" />
+                    <DateInput value={form.date_naissance ?? ""} onChange={(e) => updateField("date_naissance", e.target.value)} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Lieu de Naissance</Label>
@@ -154,7 +155,7 @@ export default function Workers() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date de Recrutement</Label>
-                    <Input type="date" value={form.hire_date ?? ""} onChange={(e) => updateField("hire_date", e.target.value)} className="h-11" />
+                    <DateInput value={form.hire_date ?? ""} onChange={(e) => updateField("hire_date", e.target.value)} className="h-11" />
                   </div>
                 </div>
               </div>
@@ -173,15 +174,15 @@ export default function Workers() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date début</Label>
-                    <Input type="date" value={form.date_debut_contrat ?? ""} onChange={(e) => updateField("date_debut_contrat", e.target.value)} className="h-11" />
+                    <DateInput value={form.date_debut_contrat ?? ""} onChange={(e) => updateField("date_debut_contrat", e.target.value)} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
-                    <Input type="date" disabled value={(form.duree_contrat && form.date_debut_contrat) ? computeEndDate(form.date_debut_contrat, form.duree_contrat) : ""} className="h-11" />
+                    <DateInput disabled value={(form.duree_contrat && form.date_debut_contrat) ? computeEndDate(form.date_debut_contrat, form.duree_contrat) : ""} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
-                    <Input type="date" value={(form as any).date_demission ?? ""} onChange={(e) => updateField("date_demission" as any, e.target.value)} className="h-11" />
+                    <DateInput value={(form as any).date_demission ?? ""} onChange={(e) => updateField("date_demission" as any, e.target.value)} className="h-11" />
                   </div>
                 </div>
               </div>

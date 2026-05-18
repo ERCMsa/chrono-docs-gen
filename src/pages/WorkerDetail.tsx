@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/ui/date-input";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -200,7 +201,7 @@ export default function WorkerDetail() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date de Naissance</Label>
-                    <Input type="date" value={editForm.date_naissance ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_naissance: e.target.value }))} className="h-11" />
+                    <DateInput value={editForm.date_naissance ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_naissance: e.target.value }))} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Lieu de Naissance</Label>
@@ -249,7 +250,7 @@ export default function WorkerDetail() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date de Recrutement</Label>
-                    <Input type="date" value={editForm.hire_date ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, hire_date: e.target.value }))} className="h-11" />
+                    <DateInput value={editForm.hire_date ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, hire_date: e.target.value }))} className="h-11" />
                   </div>
                 </div>
               </div>
@@ -288,15 +289,15 @@ export default function WorkerDetail() {
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date début</Label>
-                    <Input type="date" value={editForm.date_debut_contrat ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_debut_contrat: e.target.value }))} className="h-11" />
+                    <DateInput value={editForm.date_debut_contrat ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_debut_contrat: e.target.value }))} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
-                    <Input type="date" disabled value={(editForm.duree_contrat && editForm.date_debut_contrat) ? computeEndDate(editForm.date_debut_contrat, editForm.duree_contrat) : ""} className="h-11" />
+                    <DateInput disabled value={(editForm.duree_contrat && editForm.date_debut_contrat) ? computeEndDate(editForm.date_debut_contrat, editForm.duree_contrat) : ""} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
-                    <Input type="date" value={(editForm as any).date_demission ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_demission: e.target.value }))} className="h-11" />
+                    <DateInput value={(editForm as any).date_demission ?? ""} onChange={(e) => setEditForm((p) => ({ ...p, date_demission: e.target.value }))} className="h-11" />
                   </div>
                 </div>
               </div>

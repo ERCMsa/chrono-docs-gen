@@ -1,3 +1,4 @@
+import { DateInput } from "@/components/ui/date-input";
 import { formatDateFR } from "@/lib/date-utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -135,7 +136,7 @@ export default function Acomptes() {
               </div>
               <div>
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-11" />
+                <DateInput value={date} onChange={(e) => setDate(e.target.value)} className="h-11" />
               </div>
               <div>
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Note</Label>
@@ -194,11 +195,11 @@ export default function Acomptes() {
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Du</Label>
-          <Input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9 w-[150px]" />
+          <DateInput value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9 w-[150px]" />
         </div>
         <div>
           <Label className="text-xs text-muted-foreground mb-1 block">Au</Label>
-          <Input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9 w-[150px]" />
+          <DateInput value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9 w-[150px]" />
         </div>
       </div>
 
