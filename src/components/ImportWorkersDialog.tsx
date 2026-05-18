@@ -27,15 +27,47 @@ const EXCEL_HEADERS = [
 ];
 
 function parseExcelDate(value: any): string | null {
-  if (!value) return null;
+  if (value === null || value === undefined || value === "") return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null;
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+
   if (typeof value === "number") {
     const date = XLSX.SSF.parse_date_code(value);
-    if (date) return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+    if (date) return `${date.y}-${pad(date.m)}-${pad(date.d)}`;
+    return null;
   }
+
   if (typeof value === "string") {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
-    return value;
+    const s = value.trim();
+    if (!s) return null;
+
+    // DD/MM/YYYY or DD-MM-YYYY (also accepts 2-digit year)
+    const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if (dmy) {
+      let [, d, m, y] = dmy;
+      let year = parseInt(y, 10);
+      if (year < 100) year += 2000;
+      const day = parseInt(d, 10);
+      const month = parseInt(m, 10);
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      const dt = new Date(Date.UTC(year, month - 1, day));
+      if (dt.getUTCDate() !== day || dt.getUTCMonth() !== month - 1) return null;
+      return `${year}-${pad(month)}-${pad(day)}`;
+    }
+
+    // YYYY-MM-DD
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) {
+      const y = parseInt(iso[1], 10), m = parseInt(iso[2], 10), d = parseInt(iso[3], 10);
+      if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+      return `${y}-${pad(m)}-${pad(d)}`;
+    }
+
+    return null;
   }
   return null;
 }
