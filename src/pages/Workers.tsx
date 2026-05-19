@@ -31,13 +31,26 @@ export default function Workers() {
   const [importOpen, setImportOpen] = useState(false);
   const { data: workers, isLoading } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
 
+  const DATE_FIELDS = ["date_naissance", "hire_date", "date_debut_contrat", "date_fin_contrat", "date_demission"];
+  const sanitize = (obj: Record<string, any>) => {
+    const out: Record<string, any> = { ...obj };
+    for (const k of DATE_FIELDS) {
+      if (out[k] === "" || out[k] === undefined) out[k] = null;
+    }
+    return out;
+  };
+
   const createMutation = useMutation({
     mutationFn: () => {
       const payload: any = { ...form, is_department_head: isDeptHead };
-      if (form.duree_contrat && form.date_debut_contrat) {
-        payload.date_fin_contrat = computeEndDate(form.date_debut_contrat, form.duree_contrat);
+      // hire_date sert de date de début de contrat
+      payload.date_debut_contrat = form.hire_date || null;
+      if (form.duree_contrat && form.hire_date) {
+        payload.date_fin_contrat = computeEndDate(form.hire_date, form.duree_contrat);
+      } else {
+        payload.date_fin_contrat = null;
       }
-      return createWorker(payload);
+      return createWorker(sanitize(payload) as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workers"] });
@@ -162,7 +175,7 @@ export default function Workers() {
 
               <div>
                 <h3 className="text-sm font-semibold text-primary mb-3">Contrat</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Durée</Label>
                     <Select value={form.duree_contrat ?? ""} onValueChange={(v) => updateField("duree_contrat", v)}>
@@ -173,12 +186,8 @@ export default function Workers() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date début</Label>
-                    <DateInput value={form.date_debut_contrat ?? ""} onChange={(e) => updateField("date_debut_contrat", e.target.value)} className="h-11" />
-                  </div>
-                  <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date fin (auto)</Label>
-                    <DateInput disabled value={(form.duree_contrat && form.date_debut_contrat) ? computeEndDate(form.date_debut_contrat, form.duree_contrat) : ""} className="h-11" />
+                    <DateInput disabled value={(form.duree_contrat && form.hire_date) ? computeEndDate(form.hire_date, form.duree_contrat) : ""} className="h-11" />
                   </div>
                   <div>
                     <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date démission</Label>
