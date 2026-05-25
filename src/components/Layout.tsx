@@ -3,10 +3,12 @@ import { useState } from "react";
 import AppSidebar from "./AppSidebar";
 import Header from "./Header";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDocumentNotifications } from "@/hooks/useDocumentNotifications";
 
 export default function Layout() {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useDocumentNotifications();
 
   return (
     <div className="flex min-h-screen">

@@ -140,12 +140,16 @@ export type Database = {
           created_at: string
           document_type: string
           id: string
+          rejection_reason: string | null
           responsible_validated_at: string | null
           responsible_validator_id: string | null
           rh_validated_at: string | null
           rh_validator_id: string | null
+          status: Database["public"]["Enums"]["validation_status"]
           title: string
           updated_at: string
+          validated_at: string | null
+          validated_by: string | null
           validated_by_responsible: boolean
           validated_by_rh: boolean
           worker_id: string
@@ -155,12 +159,16 @@ export type Database = {
           created_at?: string
           document_type: string
           id?: string
+          rejection_reason?: string | null
           responsible_validated_at?: string | null
           responsible_validator_id?: string | null
           rh_validated_at?: string | null
           rh_validator_id?: string | null
+          status?: Database["public"]["Enums"]["validation_status"]
           title: string
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           validated_by_responsible?: boolean
           validated_by_rh?: boolean
           worker_id: string
@@ -170,17 +178,28 @@ export type Database = {
           created_at?: string
           document_type?: string
           id?: string
+          rejection_reason?: string | null
           responsible_validated_at?: string | null
           responsible_validator_id?: string | null
           rh_validated_at?: string | null
           rh_validator_id?: string | null
+          status?: Database["public"]["Enums"]["validation_status"]
           title?: string
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           validated_by_responsible?: boolean
           validated_by_rh?: boolean
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_worker_id_fkey"
             columns: ["worker_id"]
@@ -347,6 +366,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
@@ -363,6 +386,7 @@ export type Database = {
         | "FINANCE"
         | "CLIENT"
         | "HSE"
+      validation_status: "PENDING" | "VALIDATED" | "REJECTED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -504,6 +528,7 @@ export const Constants = {
         "CLIENT",
         "HSE",
       ],
+      validation_status: ["PENDING", "VALIDATED", "REJECTED"],
     },
   },
 } as const

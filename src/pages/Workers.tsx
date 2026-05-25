@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Users, Search, Shield, Upload, Pencil, AlertTriangle, XCircle } from "lucide-react";
+import { Plus, Users, Search, Shield, Upload, Pencil, AlertTriangle, XCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import ImportWorkersDialog from "@/components/ImportWorkersDialog";
 import { CONTRACT_DURATIONS, computeEndDate, getContractStatus, formatDateFR } from "@/lib/contract-utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const emptyWorker: WorkerInsert = {
   full_name: "", phone: "", position: "", department: "", address: "", matricule: "",
@@ -24,6 +25,8 @@ const initials = (name: string) =>
 export default function Workers() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { role, isAdmin } = useAuth();
+  const isGlobal = isAdmin() || role === "RH";
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({ ...emptyWorker });
   const [isDeptHead, setIsDeptHead] = useState(false);
@@ -86,8 +89,17 @@ export default function Workers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employés</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos employés</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold tracking-tight">Employés</h1>
+            {!isGlobal && role && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                <Building2 className="w-3.5 h-3.5" /> Département : {role}
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-1">
+            {isGlobal ? "Gérez vos employés" : "Employés de votre département"}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setImportOpen(true)}>

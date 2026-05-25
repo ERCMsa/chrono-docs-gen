@@ -20,6 +20,7 @@ import AcompteView from "./pages/AcompteView";
 import Absences from "./pages/Absences";
 import Conges from "./pages/Conges";
 import AdminPermissions from "./pages/AdminPermissions";
+import DocumentValidation from "./pages/DocumentValidation";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/workers" element={<PrivateRoute module="employees"><Workers /></PrivateRoute>} />
               <Route path="/workers/:id" element={<PrivateRoute module="employees"><WorkerDetail /></PrivateRoute>} />
               <Route path="/documents" element={<PrivateRoute module="documents"><Documents /></PrivateRoute>} />
+              <Route path="/documents/validation" element={<PrivateRoute><DocumentValidation /></PrivateRoute>} />
               <Route path="/documents/:id" element={<PrivateRoute module="documents"><DocumentView /></PrivateRoute>} />
               <Route path="/generate/:type" element={<PrivateRoute module="documents"><GenerateDocument /></PrivateRoute>} />
               <Route path="/statistics" element={<PrivateRoute module="reports"><Statistics /></PrivateRoute>} />
