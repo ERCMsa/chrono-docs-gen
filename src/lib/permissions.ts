@@ -19,6 +19,6 @@ export type PermissionAction = "view" | "create" | "edit" | "delete";
 export const ROLES = [
   "ADMIN","PRODUCTION","ENGINEER","MAINTENANCE","GDS","MONTAGE",
   "IT","GENIE_CIVIL","RH","FINANCE","CLIENT","HSE",
-  "CNC","VISITEUR","UNITE_ONE","UNITE_TWO",
+  "CNC","VISITEUR","UNITE_ONE","UNITE_TWO","GERANT",
 ] as const;
 export type UserRole = (typeof ROLES)[number];
