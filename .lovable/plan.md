@@ -1,83 +1,81 @@
-# Plan: Replace Clerk with Supabase Auth + Role-Based Permissions
+# Plan: Department-scoped visibility + Document validation
 
-This is a large refactor. I want to confirm the approach before touching the codebase.
+## Part 1 — Department-scoped employee visibility
 
-## Overview
+### DB migration
+- The project uses `workers` (not `employees`) and `workers.department` is `text`. Keep it as text but make role-based filtering work by comparing `workers.department` (string) to `profiles.role::text`.
+- Enable RLS on `workers` and replace permissive policies:
+  - SELECT: allow if caller is ADMIN/RH, OR `workers.department = (select role::text from profiles where id = auth.uid())`
+  - INSERT/UPDATE/DELETE: allow if ADMIN/RH, OR matches their department (so chefs can manage their team)
+- Add helper SECURITY DEFINER function `current_user_role()` returning `user_role` to avoid recursive policy on profiles.
 
-Remove Clerk entirely and rebuild the auth layer on Supabase Auth, using username-only login (mapped to fake emails `{username}@ercmsa.internal`). Add a profiles + permissions schema, an AuthContext, route guards, and an Admin Permissions panel. All existing data (workers, documents, acomptes, etc.) stays untouched.
+### Frontend
+- Remove any manual `.eq('department', …)` filters — let RLS scope automatically.
+- `Workers.tsx` header: show a department badge for non ADMIN/RH; hide/disable the department dropdown filter for them.
 
-## Steps
+## Part 2 — Document validation schema
 
-### 1. Database migration (Supabase)
-- Create `user_role` enum (12 roles per spec)
-- Create `profiles` table (id → auth.users, username unique, full_name, role, is_active)
-- Create `permissions` table (user_id, module, can_view/create/edit/delete, unique pair)
-- Add `has_role()` SECURITY DEFINER function (avoid recursive RLS)
-- Add `handle_new_user()` trigger to auto-create a profile row from `auth.users` metadata
-- RLS policies using `has_role()` (admin manage all, users read own)
+### DB migration on `documents`
+- Add enum `validation_status` ('PENDING','VALIDATED','REJECTED').
+- Add columns: `status validation_status default 'PENDING'`, `validated_by uuid references profiles(id)`, `validated_at timestamptz`, `rejection_reason text`.
+- `owner_id` is not needed — documents already have `worker_id` linking to `workers`, which has `department`. Validation scoping will use that join.
+- Backfill: existing rows where `validated_by_rh = true` → `status = 'VALIDATED'`.
 
-### 2. Remove Clerk
-- Uninstall `@clerk/clerk-react`
-- Remove `VITE_CLERK_PUBLISHABLE_KEY` references
-- Rewrite `App.tsx`: drop `ClerkProvider`, `SignedIn`, `SignedOut`, `RedirectToSignIn`
-- Rewrite `Header.tsx`: drop `UserButton`/`SignInButton`, show username + role badge + logout
-- Update `DocumentView.tsx`: replace `useUser()` with custom `useAuth()` (uses profile.full_name to match worker for validation logic)
+### RLS for documents (replace permissive)
+- SELECT: ADMIN/RH all; others only where the linked worker's department = their role.
+- UPDATE: ADMIN/RH all; chefs only when worker.department = their role and status = 'PENDING'.
+- INSERT/DELETE: keep current (any authenticated user; RH/ADMIN/chef of dept).
 
-### 3. Auth layer
-- `src/contexts/AuthContext.tsx`: session + profile + permissions, `hasPermission()`, `isAdmin()`, `signIn(username, password)`, `signOut()`
-- `src/hooks/useAuth.ts`: re-export from context
-- `src/components/PrivateRoute.tsx`: gate routes on session
-- `src/components/PermissionGate.tsx`: gate UI on module/action
-- `src/pages/Login.tsx`: username + password form, no signup link
-- `src/pages/Forbidden.tsx`: "Accès refusé"
+## Part 3 — Validation UI
 
-### 4. Routing
-- `App.tsx`: wrap routes in `AuthProvider`. Public route `/login`. All others wrapped by `PrivateRoute`. `/admin/permissions` additionally requires admin.
+### Documents list (`src/pages/Documents.tsx`)
+- Add a Status column with badges: 🟡 EN ATTENTE / ✅ VALIDÉ / ❌ REJETÉ (replace current bon-only status).
+- Action: "Valider / Rejeter" button visible when:
+  - status === 'PENDING' AND (user is RH/ADMIN OR user.role === worker.department).
+- Clicking opens a modal:
+  - Header: employee name + document type.
+  - Two buttons: Valider / Rejeter.
+  - If Rejeter: required textarea "Motif du rejet".
+  - Confirmer → updates `status`, `validated_by`, `validated_at`, `rejection_reason`.
+- New helper `validateDocumentStatus()` in `supabase-helpers.ts`.
 
-### 5. Admin Permissions panel
-- `src/pages/AdminPermissions.tsx`: user table + permission editor with checkboxes for the 12 modules
-- Create user, change role, toggle active (via edge function)
+## Part 4 — RH global validation dashboard
 
-### 6. Edge function `create-user`
-- Uses `SUPABASE_SERVICE_ROLE_KEY`
-- Validates caller is ADMIN (via `getClaims` + profile lookup)
-- Creates auth user with `email_confirm: true`, inserts into profiles
-- Also handles deactivate / role change (or split functions)
+- New page `src/pages/DocumentValidation.tsx` at `/documents/validation`.
+- Route gated to ADMIN or RH (via PrivateRoute + custom check using `useAuth`).
+- Summary cards: Total EN ATTENTE, ✅ VALIDÉS ce mois, ❌ REJETÉS ce mois.
+- Filter bar: département, employé (search), type de document, plage de dates.
+- Inline validate/reject actions reusing the same modal.
+- "Exporter CSV" button → builds CSV client-side from filtered rows.
+- Sidebar entry "Validation documents" shown only for RH/ADMIN.
 
-### 7. Sidebar
-- Filter nav items by `hasPermission(module, 'view')`
-- Add "Permissions" item visible to ADMIN only
-- Map existing nav: Workers→employees, Acomptes→payroll, Conges/Absences→leave, Documents+Generate→documents, Statistics→reports, Dashboard always visible
+## Part 5 — Realtime notifications
 
-### 8. Auth config
-- Call `configure_auth` with `auto_confirm_email: true` (required because we use fake emails)
+- Enable realtime on `documents` (publication).
+- In `AuthContext` (or a small `useDocumentNotifications` hook mounted in `Layout`), subscribe to:
+  - `UPDATE` on `public.documents` filtered by `validated_by` change — but owner is the worker, not the profile. Since workers aren't linked to auth users, scope the toast to chefs/RH watching their own department docs:
+    - Subscribe to all UPDATEs and toast when row is in user's department and status changed to VALIDATED/REJECTED.
+- Toast via existing `sonner`.
 
-## Technical notes
+## Files
 
-- Clerk publishable key memory rule no longer applies after this refactor — I'll update `mem://index.md` to remove that constraint.
-- `DocumentView` currently matches the Clerk username to `workers.full_name` to decide who can validate. I'll preserve that logic but source the name from `profiles.full_name` (or `username`) instead.
-- Existing permissive "Anyone can …" RLS on workers/documents/etc. stays untouched — the spec says don't break existing data models.
-- Bootstrap: the very first ADMIN must be promoted manually (I'll provide a one-line SQL the user runs after creating their first account, or seed a default admin). I'll include this in the migration as a note.
+### Created
+- `src/pages/DocumentValidation.tsx`
+- `src/components/ValidateDocumentDialog.tsx`
+- `src/hooks/useDocumentNotifications.ts`
 
-## Files to create
-- `supabase/migrations/<ts>_auth_rbac.sql`
-- `supabase/functions/create-user/index.ts`
-- `src/contexts/AuthContext.tsx`
-- `src/components/PrivateRoute.tsx`
-- `src/components/PermissionGate.tsx`
-- `src/pages/Login.tsx`
-- `src/pages/Forbidden.tsx`
-- `src/pages/AdminPermissions.tsx`
-- `src/lib/permissions.ts` (module list + labels)
+### Edited
+- `src/lib/supabase-helpers.ts` — add `validateDocumentStatus`, update `Document` typing usage.
+- `src/pages/Documents.tsx` — status column + action button + dialog.
+- `src/pages/Workers.tsx` — department badge for non ADMIN/RH, hide dept filter.
+- `src/App.tsx` — add `/documents/validation` route.
+- `src/components/AppSidebar.tsx` — add Validation entry (RH/ADMIN only).
+- `src/components/Layout.tsx` — mount `useDocumentNotifications`.
 
-## Files to edit
-- `src/App.tsx`, `src/components/Header.tsx`, `src/components/AppSidebar.tsx`, `src/pages/DocumentView.tsx`, `package.json` (remove clerk), `.env` (note: managed file, will just stop referencing the var)
+### Migration
+- Single SQL migration covering: helper function, workers RLS rewrite, documents schema additions + RLS rewrite, realtime publication, backfill.
 
-## One open question
-
-How should the first ADMIN account be created? Options:
-1. **Seed via SQL**: I create one admin (username `admin`, password you choose) directly in the migration.
-2. **Manual promotion**: You sign up once through a temporary signup screen, then I run SQL to promote you to ADMIN and remove the signup screen.
-3. **You give me a username + password now** and I'll seed it.
-
-Please pick one (or tell me your preferred username/password for option 1/3) and confirm I can proceed with the rest.
+## Notes / Decisions
+- Kept `workers` as the employee table (the spec said "employees" but project uses `workers`).
+- Used `worker.department` for scoping instead of adding `owner_id` on documents, since `documents.worker_id` already exists and `workers` already has `department`. This avoids schema duplication and keeps existing data working.
+- Existing "bon de sortie/rentrée" responsible+RH validation flow remains intact (separate columns); the new `status` represents the overall validation state and is what's displayed/filtered.
