@@ -1,20 +1,31 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, LogOut, LogIn, AlertTriangle, FilePlus, BarChart3, FileText, X, Wallet, CalendarX, CalendarRange } from "lucide-react";
+import { Users, LayoutDashboard, LogOut, LogIn, AlertTriangle, FilePlus, BarChart3, FileText, X, Wallet, CalendarX, CalendarRange, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoErcm from "@/assets/logo-ercm.png";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ModuleKey } from "@/lib/permissions";
 
-const navItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: any;
+  module?: ModuleKey;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
-  { to: "/workers", label: "Employés", icon: Users },
-  { to: "/documents", label: "Documents", icon: FileText },
-  { to: "/statistics", label: "Statistiques", icon: BarChart3 },
-  { to: "/generate/contract", label: "Contrat", icon: FilePlus },
-  { to: "/generate/bon_sortie", label: "Bon de sortie", icon: LogOut },
-  { to: "/generate/bon_rentree", label: "Bon de rentrée", icon: LogIn },
-  { to: "/generate/avertissement", label: "Avertissement", icon: AlertTriangle },
-  { to: "/acomptes", label: "Acomptes", icon: Wallet },
-  { to: "/absences", label: "Absences", icon: CalendarX },
-  { to: "/conges", label: "Congés", icon: CalendarRange },
+  { to: "/workers", label: "Employés", icon: Users, module: "employees" },
+  { to: "/documents", label: "Documents", icon: FileText, module: "documents" },
+  { to: "/statistics", label: "Statistiques", icon: BarChart3, module: "reports" },
+  { to: "/generate/contract", label: "Contrat", icon: FilePlus, module: "documents" },
+  { to: "/generate/bon_sortie", label: "Bon de sortie", icon: LogOut, module: "documents" },
+  { to: "/generate/bon_rentree", label: "Bon de rentrée", icon: LogIn, module: "documents" },
+  { to: "/generate/avertissement", label: "Avertissement", icon: AlertTriangle, module: "documents" },
+  { to: "/acomptes", label: "Acomptes", icon: Wallet, module: "payroll" },
+  { to: "/absences", label: "Absences", icon: CalendarX, module: "leave" },
+  { to: "/conges", label: "Congés", icon: CalendarRange, module: "leave" },
+  { to: "/admin/permissions", label: "Permissions", icon: Shield, adminOnly: true },
 ];
 
 interface AppSidebarProps {
@@ -23,6 +34,13 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onClose }: AppSidebarProps) {
   const location = useLocation();
+  const { hasPermission, isAdmin } = useAuth();
+
+  const visible = navItems.filter((item) => {
+    if (item.adminOnly) return isAdmin();
+    if (item.module) return isAdmin() || hasPermission(item.module, "view");
+    return true;
+  });
 
   return (
     <aside className="w-64 min-h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
@@ -41,7 +59,7 @@ export default function AppSidebar({ onClose }: AppSidebarProps) {
         )}
       </div>
       <nav className="flex-1 p-3 space-y-1">
-        {navItems.map((item) => {
+        {visible.map((item) => {
           const isActive = location.pathname === item.to;
           return (
             <Link
