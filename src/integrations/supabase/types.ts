@@ -190,6 +190,77 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          id: string
+          module: string
+          user_id: string
+        }
+        Insert: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          module: string
+          user_id: string
+        }
+        Update: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          module?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       workers: {
         Row: {
           acte_naissance: string | null
@@ -276,10 +347,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      user_role:
+        | "ADMIN"
+        | "PRODUCTION"
+        | "ENGINEER"
+        | "MAINTENANCE"
+        | "GDS"
+        | "MONTAGE"
+        | "IT"
+        | "GENIE_CIVIL"
+        | "RH"
+        | "FINANCE"
+        | "CLIENT"
+        | "HSE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -406,6 +489,21 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: [
+        "ADMIN",
+        "PRODUCTION",
+        "ENGINEER",
+        "MAINTENANCE",
+        "GDS",
+        "MONTAGE",
+        "IT",
+        "GENIE_CIVIL",
+        "RH",
+        "FINANCE",
+        "CLIENT",
+        "HSE",
+      ],
+    },
   },
 } as const
