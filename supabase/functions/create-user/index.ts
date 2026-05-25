@@ -14,7 +14,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
