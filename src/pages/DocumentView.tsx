@@ -1,7 +1,7 @@
 import { formatDateFR } from "@/lib/date-utils";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { DOCUMENT_TYPES, validateDocument, getDepartmentHeads, getWorkers } from "@/lib/supabase-helpers";
 import { exportToPdf } from "@/lib/pdf-export";
@@ -18,7 +18,7 @@ export default function DocumentView() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [validatorId, setValidatorId] = useState("");
-  const { user: clerkUser } = useUser();
+  const { user: authUser } = useAuth();
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", id],
@@ -39,16 +39,16 @@ export default function DocumentView() {
     queryFn: getDepartmentHeads,
   });
 
-  // Fetch all workers to find the current Clerk user's worker record
+  // Fetch all workers to find the current user's worker record
   const { data: allWorkers } = useQuery({
     queryKey: ["workers"],
     queryFn: getWorkers,
   });
 
-  // Find the worker record matching the current Clerk user
-  const clerkUsername = clerkUser?.username || clerkUser?.firstName || "";
+  // Find the worker record matching the current user (by full_name or username)
+  const currentUserName = (authUser?.full_name || authUser?.username || "").toLowerCase();
   const currentWorker = allWorkers?.find(
-    (w) => w.full_name.toLowerCase() === clerkUsername.toLowerCase()
+    (w) => w.full_name.toLowerCase() === currentUserName
   );
 
   // Check if current user can validate as responsible (must match a dept head for the worker's dept)
