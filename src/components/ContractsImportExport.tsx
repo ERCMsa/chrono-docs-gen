@@ -26,7 +26,7 @@ export default function ContractsImportExport() {
   const { data: documents } = useQuery({ queryKey: ["documents"], queryFn: getDocuments });
   const [importOpen, setImportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [parsedRows, setParsedRows] = useState<Array<{ worker_id: string; full_name: string; content: Record<string, any> }>>([]);
+  const [parsedRows, setParsedRows] = useState<Array<{ worker_id: string | null; full_name: string; content: Record<string, any>; newWorker?: Record<string, any> }>>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ success: number; failed: number } | null>(null);
