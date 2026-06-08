@@ -158,8 +158,75 @@ export default function ContractsImportExport() {
       if (best) return best;
     }
 
+    // Arabic -> Latin transliteration + consonant skeleton + Levenshtein matching.
+    // Handles entries like "بلعيد حسين" -> worker "BELAID HOCINE".
+    if (name && /[\u0600-\u06FF]/.test(name)) {
+      const ARABIC: Record<string, string> = {
+        "ا":"a","أ":"a","إ":"a","آ":"a","ى":"a","ة":"a",
+        "ب":"b","ت":"t","ث":"t","ج":"j","ح":"h","خ":"h",
+        "د":"d","ذ":"d","ر":"r","ز":"z","س":"s","ش":"s",
+        "ص":"s","ض":"d","ط":"t","ظ":"z","ع":"","غ":"g",
+        "ف":"f","ق":"k","ك":"k","ل":"l","م":"m","ن":"n",
+        "ه":"h","و":"o","ي":"i","ء":"","ؤ":"o","ئ":"i",
+      };
+      const translit = (s: string) =>
+        Array.from(s)
+          .map((ch) => (ARABIC[ch] !== undefined ? ARABIC[ch] : /[a-zA-Z]/.test(ch) ? ch.toLowerCase() : " "))
+          .join("");
+      // Consonant skeleton (strip vowels & silent h after digraph normalization)
+      const skeleton = (s: string) => {
+        let n = (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        n = n
+          .replace(/dj/g, "j")
+          .replace(/ch/g, "s")
+          .replace(/sh/g, "s")
+          .replace(/kh/g, "h")
+          .replace(/gh/g, "g")
+          .replace(/ou/g, "o")
+          .replace(/ph/g, "f")
+          .replace(/qu/g, "k")
+          .replace(/c([ei])/g, "s$1")
+          .replace(/c/g, "k")
+          .replace(/q/g, "k")
+          .replace(/y/g, "i")
+          .replace(/w/g, "o");
+        n = n.replace(/[^a-z]/g, "");
+        return n.replace(/[aeiouh]/g, "");
+      };
+      const lev = (a: string, b: string) => {
+        const m = a.length, n2 = b.length;
+        if (!m) return n2; if (!n2) return m;
+        const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n2 + 1).fill(0));
+        for (let i = 0; i <= m; i++) dp[i][0] = i;
+        for (let j = 0; j <= n2; j++) dp[0][j] = j;
+        for (let i = 1; i <= m; i++)
+          for (let j = 1; j <= n2; j++)
+            dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        return dp[m][n2];
+      };
+
+      const target = skeleton(translit(name));
+      if (target.length >= 2) {
+        let best: { w: any; score: number } | null = null;
+        workers.forEach((w) => {
+          const sk = skeleton(w.full_name || "");
+          if (!sk) return;
+          const d = lev(target, sk);
+          const contains = sk.includes(target) || target.includes(sk);
+          const max = Math.max(target.length, sk.length);
+          // Acceptable when fuzzy distance is low relative to length
+          if (contains || d <= Math.max(2, Math.floor(max * 0.3))) {
+            const score = contains ? 0 : d;
+            if (!best || score < best.score) best = { w, score };
+          }
+        });
+        if (best) return (best as any).w;
+      }
+    }
+
     return null;
   };
+
 
 
   // Map camelCase legacy keys -> snake_case keys used by the app
