@@ -212,7 +212,7 @@ export default function ContractsImportExport() {
             errs.push(`Élément ${i + 1}: matricule, nom ou cni requis`);
             return;
           }
-          const worker = findWorker(matricule, fullName, cin);
+          const worker = findWorker(matricule, fullName, cin, row.email || row.content?.email || "");
           if (!worker) {
             errs.push(`Élément ${i + 1}: Employé introuvable (${matricule || cin || fullName})`);
             return;
