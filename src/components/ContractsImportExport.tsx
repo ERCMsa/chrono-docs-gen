@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getWorkers, getDocuments, createDocument, DOCUMENT_TYPES } from "@/lib/supabase-helpers";
+import { getWorkers, getDocuments, createDocument, createWorker, DOCUMENT_TYPES } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
