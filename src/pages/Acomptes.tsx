@@ -607,22 +607,95 @@ function BilanGeneral({
       try {
         const text = await f.text();
         const data = JSON.parse(text);
-        const arr = Array.isArray(data) ? data : data.workers || [];
-        let added = 0;
-        for (const row of arr) {
+        const empArr: any[] = Array.isArray(data)
+          ? data
+          : data.employes || data.employees || data.workers || [];
+        const txArr: any[] = data.transactions || [];
+        const retMap: Record<string, number> = data.monthlyRetainments || data.monthly_retainments || {};
+
+        const norm = (s: any) => String(s ?? "").trim().toLowerCase();
+        const normMat = (s: any) => {
+          const v = String(s ?? "").trim();
+          if (!v || ["n/a", "na", "-"].includes(v.toLowerCase())) return "";
+          return v;
+        };
+
+        const current = [...workers];
+        const findWorker = (mat: string, name: string) => {
+          const m = normMat(mat);
+          const n = norm(name);
+          return current.find((w) => {
+            const wm = normMat(w.matricule);
+            if (m && wm && (wm === m || wm.replace(/^0+/, "") === m.replace(/^0+/, ""))) return true;
+            if (!m && norm(w.full_name) === n) return true;
+            return false;
+          });
+        };
+
+        let addedEmp = 0;
+        for (const row of empArr) {
           const matricule = row.matricule || null;
           const full_name = row.full_name || row.nom;
           if (!full_name) continue;
-          const exists = workers.find((w) =>
-            (matricule && (w.matricule || "").toLowerCase() === String(matricule).toLowerCase()) ||
-            w.full_name.toLowerCase() === String(full_name).toLowerCase()
-          );
-          if (exists) continue;
-          await createWorker({ full_name, matricule, position: row.position || row.poste || null } as any);
-          added++;
+          if (findWorker(matricule, full_name)) continue;
+          const created = await createWorker({
+            full_name,
+            matricule,
+            position: row.position || row.poste || null,
+            monthly_retention: Number(retMap[full_name] || row.monthly_retention || 0),
+          } as any);
+          if (created) current.push(created as any);
+          addedEmp++;
         }
+
+        // Apply monthly retainments to existing workers
+        for (const [name, val] of Object.entries(retMap)) {
+          const w = findWorker("", name);
+          if (w && Number(w.monthly_retention || 0) !== Number(val)) {
+            await (supabase as any).from("workers").update({ monthly_retention: Number(val) || 0 }).eq("id", w.id);
+          }
+        }
+
+        const TYPE_MAP: Record<string, string> = {
+          ACOMPTE: "acompte", DETTE: "dette", REGLEMENT: "reglement",
+          acompte: "acompte", dette: "dette", reglement: "reglement",
+          add: "acompte", subtract: "reglement",
+        };
+
+        let addedTx = 0, skippedTx = 0;
+        for (const t of txArr) {
+          const w = findWorker(t.matricule, t.nomPrenom || t.full_name || t.nom || "");
+          if (!w) { skippedTx++; continue; }
+          const type = TYPE_MAP[t.type] || "acompte";
+          const amount = Number(t.montant ?? t.amount ?? 0);
+          if (!amount) { skippedTx++; continue; }
+          const date = (t.date || t.transaction_date || todayStr()).slice(0, 10);
+          const { error } = await (supabase as any).from("acompte_transactions").insert({
+            worker_id: w.id,
+            type,
+            amount,
+            transaction_date: date,
+            note: t.description || t.note || null,
+          });
+          if (error) { skippedTx++; continue; }
+          addedTx++;
+        }
+
+        // Refresh balances for impacted workers
+        const impacted = new Set<string>();
+        for (const t of txArr) {
+          const w = findWorker(t.matricule, t.nomPrenom || t.full_name || t.nom || "");
+          if (w) impacted.add(w.id);
+        }
+        for (const id of impacted) await refreshWorkerBalance(id);
+
         qc.invalidateQueries({ queryKey: ["workers"] });
-        toast.success(`${added} employé(s) importé(s)`);
+        qc.invalidateQueries({ queryKey: ["acomptes"] });
+        const parts: string[] = [];
+        if (addedEmp) parts.push(`${addedEmp} employé(s)`);
+        if (addedTx) parts.push(`${addedTx} opération(s)`);
+        if (skippedTx) parts.push(`${skippedTx} ignorée(s)`);
+        toast.success(parts.length ? `Importé: ${parts.join(", ")}` : "Aucune donnée à importer");
       } catch (e: any) {
         toast.error(e?.message || "JSON invalide");
       }
