@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileText, Trash2, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import ContractsImportExport from "@/components/ContractsImportExport";
 
 export default function Documents() {
   const queryClient = useQueryClient();
@@ -33,6 +34,7 @@ export default function Documents() {
           <p className="text-muted-foreground mt-1">Tous les documents générés</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ContractsImportExport />
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Filtrer par type" />
