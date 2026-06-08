@@ -86,10 +86,10 @@ export async function getDepartmentHeads() {
 export type AcompteTransaction = {
   id: string;
   worker_id: string;
-  type: "add" | "subtract";
+  type: "acompte" | "dette" | "reglement";
   amount: number;
-  previous_balance: number;
-  new_balance: number;
+  previous_balance: number | null;
+  new_balance: number | null;
   transaction_date: string;
   note: string | null;
   created_at: string;
