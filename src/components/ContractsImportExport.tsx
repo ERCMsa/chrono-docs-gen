@@ -13,69 +13,12 @@ import {
 import {
   Upload,
   Download,
-  FileSpreadsheet,
+  FileJson,
   CheckCircle2,
   XCircle,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
-
-const CONTRACT_HEADERS = [
-  { key: "matricule", label: "Matricule" },
-  { key: "full_name", label: "Nom Complet" },
-  { key: "num_contrat", label: "N° Contrat" },
-  { key: "date_debut", label: "Date Début" },
-  { key: "duree_mois", label: "Durée (mois)" },
-  { key: "date_fin", label: "Date Fin" },
-  { key: "date_sign", label: "Date Signature" },
-  { key: "lieu_sign", label: "Lieu Signature" },
-  { key: "periode_essai", label: "Période d'essai (Oui/Non)" },
-  { key: "poste", label: "Poste" },
-  { key: "date_nais", label: "Date Naissance" },
-  { key: "lieu_nais", label: "Lieu Naissance" },
-  { key: "wilaya_nais", label: "Wilaya Naissance" },
-  { key: "cni", label: "N° CNI" },
-  { key: "date_cni", label: "Date CNI" },
-  { key: "wilaya_cni", label: "Wilaya CNI" },
-  { key: "commune_cni", label: "Commune CNI" },
-  { key: "adresse", label: "Adresse" },
-  { key: "wilaya_adr", label: "Wilaya Adresse" },
-  { key: "date_res", label: "Date Cert. Résidence" },
-  { key: "tel", label: "Téléphone" },
-  { key: "email", label: "Email" },
-  { key: "sal_base", label: "Salaire Base" },
-  { key: "sal_net", label: "Salaire Net" },
-];
-
-function parseExcelDate(value: any): string | null {
-  if (value === null || value === undefined || value === "") return null;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  if (value instanceof Date) {
-    if (isNaN(value.getTime())) return null;
-    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
-  }
-  if (typeof value === "number") {
-    const d = XLSX.SSF.parse_date_code(value);
-    if (d) return `${d.y}-${pad(d.m)}-${pad(d.d)}`;
-    return null;
-  }
-  if (typeof value === "string") {
-    const s = value.trim();
-    if (!s) return null;
-    const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-    if (dmy) {
-      let [, d, m, y] = dmy;
-      let year = parseInt(y, 10);
-      if (year < 100) year += 2000;
-      return `${year}-${pad(parseInt(m, 10))}-${pad(parseInt(d, 10))}`;
-    }
-    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (iso) return `${iso[1]}-${pad(parseInt(iso[2], 10))}-${pad(parseInt(iso[3], 10))}`;
-    return null;
-  }
-  return null;
-}
 
 export default function ContractsImportExport() {
   const queryClient = useQueryClient();
@@ -94,40 +37,65 @@ export default function ContractsImportExport() {
       toast.error("Aucun contrat à exporter");
       return;
     }
-    const rows = contracts.map((doc) => {
+    const data = contracts.map((doc) => {
       const c: any = doc.content || {};
       const w: any = c.worker || (doc as any).workers || {};
-      const row: Record<string, any> = {};
-      CONTRACT_HEADERS.forEach((h) => {
-        if (h.key === "matricule") row[h.label] = w.matricule ?? "";
-        else if (h.key === "full_name") row[h.label] = w.full_name ?? "";
-        else if (h.key === "periode_essai") row[h.label] = c.periode_essai === "false" ? "Non" : "Oui";
-        else row[h.label] = c[h.key] ?? "";
-      });
-      return row;
+      return {
+        matricule: w.matricule ?? "",
+        full_name: w.full_name ?? "",
+        title: doc.title,
+        created_at: doc.created_at,
+        content: c,
+      };
     });
-    const ws = XLSX.utils.json_to_sheet(rows, { header: CONTRACT_HEADERS.map((h) => h.label) });
-    ws["!cols"] = CONTRACT_HEADERS.map((h) => ({ wch: Math.max(h.label.length + 4, 18) }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contrats");
-    XLSX.writeFile(wb, `contrats_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contrats_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success(`${contracts.length} contrat(s) exporté(s)`);
   };
 
   const downloadTemplate = () => {
-    const headers = CONTRACT_HEADERS.map((h) => h.label);
     const sample = [
-      "EMP-001", "Ahmed Benali", "001/2025", "2025-01-15", "12", "2026-01-14",
-      "2025-01-15", "أولاد موسى", "Oui", "Technicien",
-      "1990-05-20", "Alger", "الجزائر", "123456789", "2015-03-10", "الجزائر", "Hussein Dey",
-      "123 Rue X", "الجزائر", "2024-06-01", "0612345678", "ahmed@example.com",
-      "40000", "35000",
+      {
+        matricule: "EMP-001",
+        full_name: "Ahmed Benali",
+        content: {
+          num_contrat: "001/2025",
+          date_debut: "2025-01-15",
+          duree_mois: "12",
+          date_fin: "2026-01-14",
+          date_sign: "2025-01-15",
+          lieu_sign: "أولاد موسى",
+          periode_essai: "true",
+          poste: "Technicien",
+          date_nais: "1990-05-20",
+          lieu_nais: "Alger",
+          wilaya_nais: "الجزائر",
+          cni: "123456789",
+          date_cni: "2015-03-10",
+          wilaya_cni: "الجزائر",
+          commune_cni: "Hussein Dey",
+          adresse: "123 Rue X",
+          wilaya_adr: "الجزائر",
+          date_res: "2024-06-01",
+          tel: "0612345678",
+          email: "ahmed@example.com",
+          sal_base: "40000",
+          sal_net: "35000",
+        },
+      },
     ];
-    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
-    ws["!cols"] = headers.map((h) => ({ wch: Math.max(h.length + 4, 18) }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Contrats");
-    XLSX.writeFile(wb, "modele_import_contrats.xlsx");
+    const blob = new Blob([JSON.stringify(sample, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modele_import_contrats.json";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const reset = () => {
@@ -158,47 +126,33 @@ export default function ContractsImportExport() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const wb = XLSX.read(evt.target?.result, { type: "binary" });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet);
+        const text = String(evt.target?.result || "");
+        const parsed = JSON.parse(text);
+        const arr: any[] = Array.isArray(parsed) ? parsed : [parsed];
         const errs: string[] = [];
         const ok: Array<{ worker_id: string; full_name: string; content: Record<string, any> }> = [];
-        rows.forEach((row, i) => {
-          const matricule = row["Matricule"]?.toString() || "";
-          const fullName = row["Nom Complet"]?.toString() || "";
+        arr.forEach((row, i) => {
+          const matricule = row.matricule || row.content?.worker?.matricule || "";
+          const fullName = row.full_name || row.content?.worker?.full_name || "";
           if (!matricule && !fullName) {
-            errs.push(`Ligne ${i + 2}: Matricule ou Nom Complet requis`);
+            errs.push(`Élément ${i + 1}: matricule ou full_name requis`);
             return;
           }
           const worker = findWorker(matricule, fullName);
           if (!worker) {
-            errs.push(`Ligne ${i + 2}: Employé introuvable (${matricule || fullName})`);
+            errs.push(`Élément ${i + 1}: Employé introuvable (${matricule || fullName})`);
             return;
           }
-          const content: Record<string, any> = { worker };
-          CONTRACT_HEADERS.forEach((h) => {
-            if (h.key === "matricule" || h.key === "full_name") return;
-            const val = row[h.label];
-            if (val === undefined || val === null || val === "") return;
-            if (h.key.startsWith("date_")) {
-              const d = parseExcelDate(val);
-              if (d) content[h.key] = d;
-            } else if (h.key === "periode_essai") {
-              const s = val.toString().toLowerCase();
-              content[h.key] = ["non", "no", "false", "0"].includes(s) ? "false" : "true";
-            } else {
-              content[h.key] = val.toString();
-            }
-          });
+          const content = { ...(row.content || {}), worker };
           ok.push({ worker_id: worker.id, full_name: worker.full_name, content });
         });
         setParsedRows(ok);
         setErrors(errs);
       } catch {
-        toast.error("Erreur de lecture du fichier Excel");
+        toast.error("Fichier JSON invalide");
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsText(file);
   };
 
   const handleImport = async () => {
@@ -237,24 +191,24 @@ export default function ContractsImportExport() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-primary" />
-              Importer des contrats
+              <FileJson className="w-5 h-5 text-primary" />
+              Importer des contrats (JSON)
             </DialogTitle>
             <DialogDescription>
-              Importez plusieurs contrats depuis un fichier Excel. Les employés doivent déjà exister (recherche par matricule ou nom complet).
+              Importez plusieurs contrats depuis un fichier JSON. Les employés doivent déjà exister (recherche par matricule ou nom complet).
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             <Button variant="outline" className="w-full gap-2" onClick={downloadTemplate}>
               <Download className="w-4 h-4" />
-              Télécharger le modèle Excel
+              Télécharger le modèle JSON
             </Button>
 
             <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
               <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground mb-2">Sélectionnez votre fichier Excel</p>
-              <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="w-full text-sm" />
+              <p className="text-sm text-muted-foreground mb-2">Sélectionnez votre fichier JSON</p>
+              <input ref={fileRef} type="file" accept=".json,application/json" onChange={handleFile} className="w-full text-sm" />
             </div>
 
             {parsedRows.length > 0 && (
