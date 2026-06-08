@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getWorkers, getDocuments, createDocument, DOCUMENT_TYPES } from "@/lib/supabase-helpers";
+import { getWorkers, getDocuments, createDocument, createWorker, DOCUMENT_TYPES } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +26,7 @@ export default function ContractsImportExport() {
   const { data: documents } = useQuery({ queryKey: ["documents"], queryFn: getDocuments });
   const [importOpen, setImportOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [parsedRows, setParsedRows] = useState<Array<{ worker_id: string; full_name: string; content: Record<string, any> }>>([]);
+  const [parsedRows, setParsedRows] = useState<Array<{ worker_id: string | null; full_name: string; content: Record<string, any>; newWorker?: Record<string, any> }>>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ success: number; failed: number } | null>(null);
@@ -270,7 +270,7 @@ export default function ContractsImportExport() {
         const parsed = JSON.parse(text);
         const arr: any[] = Array.isArray(parsed) ? parsed : [parsed];
         const errs: string[] = [];
-        const ok: Array<{ worker_id: string; full_name: string; content: Record<string, any> }> = [];
+        const ok: Array<{ worker_id: string | null; full_name: string; content: Record<string, any>; newWorker?: Record<string, any> }> = [];
         arr.forEach((row, i) => {
           const matricule = row.matricule || row.content?.worker?.matricule || "";
           const fullName = row.full_name || row.nom || row.displayName || row.content?.worker?.full_name || "";
@@ -280,15 +280,27 @@ export default function ContractsImportExport() {
             return;
           }
           const worker = findWorker(matricule, fullName, cin, row.email || row.content?.email || "");
-          if (!worker) {
-            errs.push(`Élément ${i + 1}: Employé introuvable (${matricule || cin || fullName})`);
-            return;
+          const content = normalizeContent(row);
+          if (worker) {
+            ok.push({ worker_id: worker.id, full_name: worker.full_name, content: { ...content, worker } });
+          } else {
+            // Auto-create a new worker from the JSON entry
+            const newWorker: Record<string, any> = {
+              full_name: fullName || cin || matricule || "Sans nom",
+              matricule: matricule || null,
+              cin: cin || null,
+              phone: row.tel || row.phone || null,
+              position: row.poste || row.position || null,
+              address: row.adresse || row.address || null,
+              date_naissance: row.dateNais || row.date_naissance || null,
+              lieu_naissance: row.lieuNais || row.lieu_naissance || null,
+            };
+            ok.push({ worker_id: null, full_name: newWorker.full_name, content, newWorker });
           }
-          const content = { ...normalizeContent(row), worker };
-          ok.push({ worker_id: worker.id, full_name: worker.full_name, content });
         });
         setParsedRows(ok);
         setErrors(errs);
+
 
       } catch {
         toast.error("Fichier JSON invalide");
@@ -302,11 +314,19 @@ export default function ContractsImportExport() {
     let success = 0, failed = 0;
     for (const r of parsedRows) {
       try {
+        let workerId = r.worker_id;
+        let workerObj: any = r.content.worker;
+        if (!workerId && r.newWorker) {
+          const created = await createWorker(r.newWorker as any);
+          workerId = created.id;
+          workerObj = created;
+        }
+        if (!workerId) { failed++; continue; }
         await createDocument({
-          worker_id: r.worker_id,
+          worker_id: workerId,
           document_type: "contract",
           title: `${DOCUMENT_TYPES.contract.label} - ${r.full_name}`,
-          content: r.content as any,
+          content: { ...r.content, worker: workerObj } as any,
         });
         success++;
       } catch {
@@ -316,9 +336,11 @@ export default function ContractsImportExport() {
     setImporting(false);
     setResult({ success, failed });
     queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ["workers"] });
     if (success > 0) toast.success(`${success} contrat(s) importé(s)`);
     if (failed > 0) toast.error(`${failed} contrat(s) non importé(s)`);
   };
+
 
   return (
     <>
