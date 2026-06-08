@@ -314,11 +314,19 @@ export default function ContractsImportExport() {
     let success = 0, failed = 0;
     for (const r of parsedRows) {
       try {
+        let workerId = r.worker_id;
+        let workerObj: any = r.content.worker;
+        if (!workerId && r.newWorker) {
+          const created = await createWorker(r.newWorker as any);
+          workerId = created.id;
+          workerObj = created;
+        }
+        if (!workerId) { failed++; continue; }
         await createDocument({
-          worker_id: r.worker_id,
+          worker_id: workerId,
           document_type: "contract",
           title: `${DOCUMENT_TYPES.contract.label} - ${r.full_name}`,
-          content: r.content as any,
+          content: { ...r.content, worker: workerObj } as any,
         });
         success++;
       } catch {
@@ -328,9 +336,11 @@ export default function ContractsImportExport() {
     setImporting(false);
     setResult({ success, failed });
     queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ["workers"] });
     if (success > 0) toast.success(`${success} contrat(s) importé(s)`);
     if (failed > 0) toast.error(`${failed} contrat(s) non importé(s)`);
   };
+
 
   return (
     <>
