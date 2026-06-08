@@ -462,10 +462,12 @@ export default function WorkerDetail() {
                   <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="p-4 text-sm">{formatDateFR(t.transaction_date)}</td>
                     <td className="p-4">
-                      {t.type === "add" ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><TrendingUp className="w-3 h-3" />Avance</span>
+                      {t.type === "reglement" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600"><TrendingDown className="w-3 h-3" />Règlement</span>
+                      ) : t.type === "dette" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600"><TrendingUp className="w-3 h-3" />Dette</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600"><TrendingDown className="w-3 h-3" />Remb.</span>
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><TrendingUp className="w-3 h-3" />Acompte</span>
                       )}
                     </td>
                     <td className="p-4 text-right font-semibold">{fmt(Number(t.amount))} DA</td>

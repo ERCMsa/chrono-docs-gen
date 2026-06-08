@@ -54,9 +54,9 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          new_balance: number
+          new_balance: number | null
           note: string | null
-          previous_balance: number
+          previous_balance: number | null
           transaction_date: string
           type: string
           worker_id: string
@@ -65,9 +65,9 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
-          new_balance: number
+          new_balance?: number | null
           note?: string | null
-          previous_balance: number
+          previous_balance?: number | null
           transaction_date?: string
           type: string
           worker_id: string
@@ -76,9 +76,9 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
-          new_balance?: number
+          new_balance?: number | null
           note?: string | null
-          previous_balance?: number
+          previous_balance?: number | null
           transaction_date?: string
           type?: string
           worker_id?: string
@@ -299,6 +299,7 @@ export type Database = {
           is_department_head: boolean
           lieu_naissance: string | null
           matricule: string | null
+          monthly_retention: number
           numero_compte: string | null
           numero_social: string | null
           phone: string | null
@@ -325,6 +326,7 @@ export type Database = {
           is_department_head?: boolean
           lieu_naissance?: string | null
           matricule?: string | null
+          monthly_retention?: number
           numero_compte?: string | null
           numero_social?: string | null
           phone?: string | null
@@ -351,6 +353,7 @@ export type Database = {
           is_department_head?: boolean
           lieu_naissance?: string | null
           matricule?: string | null
+          monthly_retention?: number
           numero_compte?: string | null
           numero_social?: string | null
           phone?: string | null

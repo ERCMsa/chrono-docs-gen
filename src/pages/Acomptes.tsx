@@ -1,257 +1,795 @@
-import { DateInput } from "@/components/ui/date-input";
-import { formatDateFR } from "@/lib/date-utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { getWorkers, getAcomptes, createAcompte, deleteAcompte } from "@/lib/supabase-helpers";
+import {
+  getWorkers,
+  getAcomptes,
+  createAcompte,
+  deleteAcompte,
+  createWorker,
+  deleteWorker,
+  refreshWorkerBalance,
+  type Worker,
+  type AcompteTransaction,
+} from "@/lib/supabase-helpers";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Wallet, TrendingUp, TrendingDown, Trash2, Eye, Filter } from "lucide-react";
+import { DateInput } from "@/components/ui/date-input";
+import { formatDateFR } from "@/lib/date-utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Users,
+  Search,
+  BarChart3,
+  Settings,
+  Save,
+  FileText,
+  Receipt,
+  Eye,
+  Trash2,
+  Download,
+  Upload,
+  RotateCcw,
+  Printer,
+  X,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
-import AcomptesImportExport from "@/components/AcomptesImportExport";
 
-const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(n);
+const fmt = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(Number(n) || 0);
 const todayStr = () => new Date().toISOString().slice(0, 10);
+
+const TYPE_BADGE: Record<string, string> = {
+  acompte: "bg-amber-400 text-amber-950",
+  dette: "bg-red-500 text-white",
+  reglement: "bg-emerald-500 text-white",
+};
+const TYPE_LABEL: Record<string, string> = {
+  acompte: "ACOMPTE",
+  dette: "DETTE",
+  reglement: "REGLEMENT",
+};
+
+type WorkerExt = Worker & { current_balance?: number; monthly_retention?: number };
+
+// ====================== TOTALS COMPUTATION ======================
+function useWorkerStats(workers: WorkerExt[] | undefined, txs: AcompteTransaction[] | undefined) {
+  return useMemo(() => {
+    const map = new Map<string, { acompte: number; dette: number; reglement: number }>();
+    (workers || []).forEach((w) => map.set(w.id, { acompte: 0, dette: 0, reglement: 0 }));
+    (txs || []).forEach((t) => {
+      const s = map.get(t.worker_id);
+      if (!s) return;
+      const a = Number(t.amount) || 0;
+      if (t.type === "acompte") s.acompte += a;
+      else if (t.type === "dette") s.dette += a;
+      else if (t.type === "reglement") s.reglement += a;
+    });
+    return map;
+  }, [workers, txs]);
+}
 
 export default function Acomptes() {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [workerId, setWorkerId] = useState("");
-  const [type, setType] = useState<"add" | "subtract">("add");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayStr());
-  const [note, setNote] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "add" | "subtract">("all");
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
-
   const { data: workers } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
-  const { data: txs, isLoading } = useQuery({ queryKey: ["acomptes"], queryFn: () => getAcomptes() });
+  const { data: txs } = useQuery({ queryKey: ["acomptes"], queryFn: () => getAcomptes() });
+  const stats = useWorkerStats(workers as WorkerExt[], txs);
 
-  const selectedWorker = workers?.find((w) => w.id === workerId);
-  const currentBalance = Number((selectedWorker as any)?.current_balance ?? 0);
-
-  const createMut = useMutation({
-    mutationFn: () => createAcompte({
-      worker_id: workerId,
-      type,
-      amount: parseFloat(amount),
-      transaction_date: date,
-      note: note.trim() || undefined,
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["acomptes"] });
-      qc.invalidateQueries({ queryKey: ["workers"] });
-      qc.invalidateQueries({ queryKey: ["worker", workerId] });
-      qc.invalidateQueries({ queryKey: ["worker-acomptes", workerId] });
-      toast.success("Acompte enregistré");
-      setOpen(false);
-      setWorkerId(""); setAmount(""); setNote(""); setType("add"); setDate(todayStr());
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Erreur lors de l'enregistrement"),
-  });
-
-  const delMut = useMutation({
-    mutationFn: (id: string) => deleteAcompte(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["acomptes"] });
-      qc.invalidateQueries({ queryKey: ["workers"] });
-      toast.success("Acompte supprimé");
-    },
-  });
-
-  const handleSubmit = () => {
-    if (!workerId) return toast.error("Sélectionnez un employé");
-    const a = parseFloat(amount);
-    if (!a || a <= 0) return toast.error("Le montant doit être positif");
-    if (type === "subtract" && a > currentBalance) return toast.error(`Remboursement supérieur au solde (${fmt(currentBalance)} DA)`);
-    createMut.mutate();
-  };
-
-  const filtered = useMemo(() => {
-    if (!txs) return [];
-    return txs.filter((t) => {
-      if (filterType !== "all" && t.type !== filterType) return false;
-      if (filterFrom && t.transaction_date < filterFrom) return false;
-      if (filterTo && t.transaction_date > filterTo) return false;
-      return true;
+  const totals = useMemo(() => {
+    let acompte = 0, dette = 0, reglement = 0;
+    (txs || []).forEach((t) => {
+      const a = Number(t.amount) || 0;
+      if (t.type === "acompte") acompte += a;
+      else if (t.type === "dette") dette += a;
+      else if (t.type === "reglement") reglement += a;
     });
-  }, [txs, filterType, filterFrom, filterTo]);
-
-  const totalDebt = useMemo(
-    () => (workers ?? []).reduce((s, w) => s + Number((w as any).current_balance ?? 0), 0),
-    [workers]
-  );
-  const topDebtors = useMemo(
-    () => [...(workers ?? [])].sort((a, b) => Number((b as any).current_balance ?? 0) - Number((a as any).current_balance ?? 0)).filter(w => Number((w as any).current_balance ?? 0) > 0).slice(0, 3),
-    [workers]
-  );
+    return { acompte, dette, reglement, reste: acompte + dette - reglement };
+  }, [txs]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Acomptes</h1>
-          <p className="text-muted-foreground mt-1">Gestion des avances sur salaire</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <AcomptesImportExport />
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="w-4 h-4 mr-2" />Nouvel acompte</Button>
-            </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader><DialogTitle>Nouvel acompte</DialogTitle></DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Employé *</Label>
-                <Select value={workerId} onValueChange={setWorkerId}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Sélectionner un employé" /></SelectTrigger>
-                  <SelectContent>
-                    {workers?.map((w) => (
-                      <SelectItem key={w.id} value={w.id}>{w.full_name} {w.matricule ? `(#${w.matricule})` : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedWorker && (
-                  <p className="text-sm mt-2 text-muted-foreground">Solde actuel : <span className="font-semibold text-foreground">{fmt(currentBalance)} DA</span></p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Type *</Label>
-                  <Select value={type} onValueChange={(v: any) => setType(v)}>
-                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="add">Avance (+)</SelectItem>
-                      <SelectItem value="subtract">Remboursement (−)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Montant (DA) *</Label>
-                  <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-11" placeholder="0.00" />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date</Label>
-                <DateInput value={date} onChange={(e) => setDate(e.target.value)} className="h-11" />
-              </div>
-              <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Note</Label>
-                <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Description optionnelle..." rows={2} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-              <Button onClick={handleSubmit} disabled={createMut.isPending}>{createMut.isPending ? "..." : "Enregistrer"}</Button>
-            </DialogFooter>
-          </DialogContent>
-          </Dialog>
-        </div>
+    <div className="space-y-4">
+      <div className="text-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-primary uppercase tracking-tight">
+          ERCM SA — Gestion des Acomptes et Dettes
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold">
+            {workers?.length ?? 0}
+          </span>{" "}
+          Employés enregistrés
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card border rounded-xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-primary/10 text-primary"><Wallet className="w-5 h-5" /></div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">Total dettes</p>
-              <p className="text-2xl font-bold">{fmt(totalDebt)} DA</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-card border rounded-xl p-5 md:col-span-2">
-          <p className="text-xs text-muted-foreground uppercase mb-2">Top débiteurs</p>
-          {topDebtors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun</p>
-          ) : (
-            <div className="space-y-1.5">
-              {topDebtors.map((w) => (
-                <div key={w.id} className="flex justify-between text-sm">
-                  <Link to={`/workers/${w.id}`} className="hover:underline">{w.full_name}</Link>
-                  <span className="font-semibold">{fmt(Number((w as any).current_balance))} DA</span>
-                </div>
+      <Tabs defaultValue="nouvelle" className="w-full">
+        <TabsList className="w-full grid grid-cols-2 md:grid-cols-5 h-auto bg-transparent border-b rounded-none p-0 gap-0">
+          <TabsTrigger value="nouvelle" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent rounded-none py-3 gap-2">
+            <Plus className="w-4 h-4" /> Nouvelle Opération
+          </TabsTrigger>
+          <TabsTrigger value="groupees" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent rounded-none py-3 gap-2">
+            <Users className="w-4 h-4" /> Opérations Groupées
+          </TabsTrigger>
+          <TabsTrigger value="historique" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent rounded-none py-3 gap-2">
+            <Search className="w-4 h-4" /> Historique & Filtres
+          </TabsTrigger>
+          <TabsTrigger value="bilan" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent rounded-none py-3 gap-2">
+            <BarChart3 className="w-4 h-4" /> Bilan Général
+          </TabsTrigger>
+          <TabsTrigger value="employes" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent rounded-none py-3 gap-2">
+            <Settings className="w-4 h-4" /> Gestion Employés
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="nouvelle" className="mt-6">
+          <NouvelleOperation workers={(workers || []) as WorkerExt[]} />
+        </TabsContent>
+        <TabsContent value="groupees" className="mt-6">
+          <OperationsGroupees workers={(workers || []) as WorkerExt[]} stats={stats} />
+        </TabsContent>
+        <TabsContent value="historique" className="mt-6">
+          <Historique txs={txs || []} />
+        </TabsContent>
+        <TabsContent value="bilan" className="mt-6">
+          <BilanGeneral workers={(workers || []) as WorkerExt[]} stats={stats} totals={totals} />
+        </TabsContent>
+        <TabsContent value="employes" className="mt-6">
+          <GestionEmployes workers={(workers || []) as WorkerExt[]} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ====================== NOUVELLE OPÉRATION ======================
+function NouvelleOperation({ workers }: { workers: WorkerExt[] }) {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [workerId, setWorkerId] = useState("");
+  const [date, setDate] = useState(todayStr());
+  const [type, setType] = useState<"acompte" | "dette" | "reglement">("acompte");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+
+  const suggestions = useMemo(() => {
+    if (!search.trim()) return [];
+    const s = search.toLowerCase();
+    return workers
+      .filter((w) => w.full_name.toLowerCase().includes(s) || (w.matricule || "").toLowerCase().includes(s))
+      .slice(0, 8);
+  }, [search, workers]);
+
+  const reset = () => {
+    setSearch(""); setWorkerId(""); setAmount(""); setNote("");
+    setType("acompte"); setDate(todayStr());
+  };
+
+  const save = async (after: "none" | "recu" | "decharge") => {
+    if (!workerId) return toast.error("Sélectionnez un employé");
+    const a = parseFloat(amount);
+    if (!a || a <= 0) return toast.error("Montant invalide");
+    try {
+      const tx = await createAcompte({ worker_id: workerId, type, amount: a, transaction_date: date, note: note.trim() || undefined });
+      toast.success("Opération enregistrée");
+      qc.invalidateQueries({ queryKey: ["acomptes"] });
+      qc.invalidateQueries({ queryKey: ["workers"] });
+      if (after !== "none") {
+        // Open print preview
+        window.open(`/acomptes/${tx.id}?print=1&variant=${after}`, "_blank");
+      }
+      reset();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur");
+    }
+  };
+
+  return (
+    <div className="bg-muted/40 border rounded-xl p-6">
+      <h2 className="text-primary font-bold mb-5 flex items-center gap-2">
+        <FileText className="w-4 h-4" /> Saisir une transaction (Individuelle)
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="relative">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+            Nom de l'employé *
+          </Label>
+          <Input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setWorkerId(""); }}
+            placeholder="Tapez le nom..."
+            className="h-11"
+          />
+          {suggestions.length > 0 && !workerId && (
+            <div className="absolute z-10 top-full mt-1 w-full bg-popover border rounded-md shadow-lg max-h-60 overflow-auto">
+              {suggestions.map((w) => (
+                <button
+                  type="button"
+                  key={w.id}
+                  onClick={() => { setWorkerId(w.id); setSearch(`${w.full_name}${w.matricule ? ` (#${w.matricule})` : ""}`); }}
+                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                >
+                  <span className="font-medium">{w.full_name}</span>
+                  {w.matricule && <span className="text-muted-foreground"> · #{w.matricule}</span>}
+                </button>
               ))}
             </div>
           )}
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-card border rounded-xl p-4 flex flex-wrap items-end gap-3">
-        <Filter className="w-4 h-4 text-muted-foreground mb-2.5" />
         <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
-          <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date *</Label>
+          <DateInput value={date} onChange={(e) => setDate(e.target.value)} className="h-11" />
+        </div>
+        <div>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Type d'opération *</Label>
+          <Select value={type} onValueChange={(v: any) => setType(v)}>
+            <SelectTrigger className="h-11"><SelectValue placeholder="-- Choisir --" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              <SelectItem value="add">Avances</SelectItem>
-              <SelectItem value="subtract">Remboursements</SelectItem>
+              <SelectItem value="acompte">Acompte (avance)</SelectItem>
+              <SelectItem value="dette">Dette</SelectItem>
+              <SelectItem value="reglement">Règlement (remboursement)</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Du</Label>
-          <DateInput value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="h-9 w-[150px]" />
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Montant (DA) *</Label>
+          <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-11" placeholder="0.00" />
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Au</Label>
-          <DateInput value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="h-9 w-[150px]" />
+        <div className="md:col-span-2">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">Description (optionnel)</Label>
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes (ex: Avance Aïd, Retenue mois de Mars...)" />
         </div>
       </div>
 
-      {/* History */}
-      <div className="bg-card border rounded-xl overflow-hidden overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b bg-muted/50 text-left text-sm text-muted-foreground">
-              <th className="p-4 font-medium">Date</th>
-              <th className="p-4 font-medium">Employé</th>
-              <th className="p-4 font-medium">Type</th>
-              <th className="p-4 font-medium text-right">Montant</th>
-              <th className="p-4 font-medium text-right">Avant</th>
-              <th className="p-4 font-medium text-right">Après</th>
-              <th className="p-4 font-medium">Note</th>
-              <th className="p-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Chargement...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Aucun acompte</td></tr>
-            ) : (
-              filtered.map((t) => (
+      <div className="flex flex-wrap gap-3 mt-6">
+        <Button onClick={() => save("none")} className="bg-primary hover:bg-primary/90">
+          <Save className="w-4 h-4 mr-2" /> Enregistrer seulement
+        </Button>
+        <Button onClick={() => save("recu")} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Receipt className="w-4 h-4 mr-2" /> Enregistrer & Reçu
+        </Button>
+        <Button onClick={() => save("decharge")} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <FileText className="w-4 h-4 mr-2" /> Enregistrer & Décharge
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ====================== OPÉRATIONS GROUPÉES ======================
+function OperationsGroupees({
+  workers,
+  stats,
+}: {
+  workers: WorkerExt[];
+  stats: Map<string, { acompte: number; dette: number; reglement: number }>;
+}) {
+  const qc = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [date, setDate] = useState(todayStr());
+  const [search, setSearch] = useState("");
+  const [retentionInputs, setRetentionInputs] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const list = useMemo(() => {
+    const s = search.toLowerCase();
+    return [...workers]
+      .filter((w) => !s || w.full_name.toLowerCase().includes(s) || (w.matricule || "").toLowerCase().includes(s))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [workers, search]);
+
+  const toggle = (id: string) => {
+    const n = new Set(selected);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    setSelected(n);
+  };
+  const allOn = () => setSelected(new Set(list.map((w) => w.id)));
+  const allOff = () => setSelected(new Set());
+
+  const saveRetention = async (workerId: string) => {
+    const v = parseFloat(retentionInputs[workerId] || "0");
+    if (isNaN(v) || v < 0) return toast.error("Montant invalide");
+    const { error } = await supabase.from("workers").update({ monthly_retention: v } as any).eq("id", workerId);
+    if (error) return toast.error(error.message);
+    toast.success("Retenue mise à jour");
+    qc.invalidateQueries({ queryKey: ["workers"] });
+    setRetentionInputs((p) => ({ ...p, [workerId]: "" }));
+  };
+
+  const appliquerRetenues = async () => {
+    if (selected.size === 0) return toast.error("Sélectionnez au moins un employé");
+    setBusy(true);
+    let ok = 0, skip = 0;
+    for (const id of selected) {
+      const w = workers.find((x) => x.id === id);
+      const r = Number(w?.monthly_retention || 0);
+      if (!r) { skip++; continue; }
+      try {
+        await createAcompte({ worker_id: id, type: "reglement", amount: r, transaction_date: date, note: "Retenue mensuelle automatique" });
+        ok++;
+      } catch { skip++; }
+    }
+    setBusy(false);
+    qc.invalidateQueries({ queryKey: ["acomptes"] });
+    qc.invalidateQueries({ queryKey: ["workers"] });
+    toast.success(`${ok} retenue(s) appliquée(s)${skip ? `, ${skip} ignorée(s)` : ""}`);
+    setSelected(new Set());
+  };
+
+  const solderAcomptes = async () => {
+    if (selected.size === 0) return toast.error("Sélectionnez au moins un employé");
+    if (!confirm(`Solder les acomptes pour ${selected.size} employé(s) ?`)) return;
+    setBusy(true);
+    let ok = 0, skip = 0;
+    for (const id of selected) {
+      const s = stats.get(id);
+      const reste = s ? s.acompte - s.reglement : 0;
+      if (reste <= 0) { skip++; continue; }
+      try {
+        await createAcompte({ worker_id: id, type: "reglement", amount: reste, transaction_date: date, note: "Solde Acompte Auto" });
+        ok++;
+      } catch { skip++; }
+    }
+    setBusy(false);
+    qc.invalidateQueries({ queryKey: ["acomptes"] });
+    qc.invalidateQueries({ queryKey: ["workers"] });
+    toast.success(`${ok} acompte(s) soldé(s)${skip ? `, ${skip} ignoré(s)` : ""}`);
+    setSelected(new Set());
+  };
+
+  return (
+    <div className="bg-muted/40 border rounded-xl p-6 space-y-4">
+      <h2 className="text-primary font-bold flex items-center gap-2">
+        <Users className="w-4 h-4" /> Traitements en Masse
+      </h2>
+      <p className="text-sm text-muted-foreground">Cochez les employés puis appliquez l'action.</p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={allOn} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Check className="w-3.5 h-3.5 mr-1" /> Tout cocher
+        </Button>
+        <Button size="sm" onClick={allOff} variant="outline">
+          <X className="w-3.5 h-3.5 mr-1" /> Tout décocher
+        </Button>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher..."
+          className="h-9 max-w-xs"
+        />
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-zinc-800 text-white">
+              <tr>
+                <th className="p-3 text-left w-12">Sel.</th>
+                <th className="p-3 text-left">Employé</th>
+                <th className="p-3 text-right">Reste Acompte</th>
+                <th className="p-3 text-right">Solde Total</th>
+                <th className="p-3 text-right">Retenue Config.</th>
+                <th className="p-3 text-left">Configurer</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((w) => {
+                const s = stats.get(w.id) || { acompte: 0, dette: 0, reglement: 0 };
+                const resteAc = Math.max(0, s.acompte - s.reglement);
+                const solde = s.acompte + s.dette - s.reglement;
+                const ret = Number(w.monthly_retention || 0);
+                return (
+                  <tr key={w.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="p-3">
+                      <input type="checkbox" checked={selected.has(w.id)} onChange={() => toggle(w.id)} />
+                    </td>
+                    <td className="p-3 font-semibold">{w.full_name}{w.matricule ? <span className="text-muted-foreground font-normal"> · #{w.matricule}</span> : null}</td>
+                    <td className="p-3 text-right font-semibold text-amber-600">{fmt(resteAc)}</td>
+                    <td className="p-3 text-right font-semibold text-red-600">{fmt(solde)}</td>
+                    <td className="p-3 text-right text-muted-foreground">{ret > 0 ? `${fmt(ret)} /mois` : "—"}</td>
+                    <td className="p-3">
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          placeholder="DA"
+                          className="h-8 w-24"
+                          value={retentionInputs[w.id] ?? ""}
+                          onChange={(e) => setRetentionInputs((p) => ({ ...p, [w.id]: e.target.value }))}
+                        />
+                        <Button size="sm" className="h-8 bg-blue-500 hover:bg-blue-600 text-white" onClick={() => saveRetention(w.id)}>OK</Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="border border-amber-200 bg-amber-50 rounded-lg p-4">
+        <p className="font-semibold mb-3">Actions à appliquer :</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Date</Label>
+            <DateInput value={date} onChange={(e) => setDate(e.target.value)} className="h-10 w-44" />
+          </div>
+          <Button onClick={appliquerRetenues} disabled={busy} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Check className="w-4 h-4 mr-2" /> Appliquer Retenues
+          </Button>
+          <Button onClick={solderAcomptes} disabled={busy} className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Receipt className="w-4 h-4 mr-2" /> Solder Acomptes
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====================== HISTORIQUE ======================
+function Historique({ txs }: { txs: (AcompteTransaction & { workers?: any })[] }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [type, setType] = useState<"all" | "acompte" | "dette" | "reglement">("all");
+
+  const filtered = useMemo(() => {
+    const n = name.toLowerCase();
+    return txs.filter((t) => {
+      if (n && !(t.workers?.full_name || "").toLowerCase().includes(n)) return false;
+      if (from && t.transaction_date < from) return false;
+      if (to && t.transaction_date > to) return false;
+      if (type !== "all" && t.type !== type) return false;
+      return true;
+    });
+  }, [txs, name, from, to, type]);
+
+  const del = async (id: string) => {
+    if (!confirm("Supprimer cette opération ?")) return;
+    await deleteAcompte(id);
+    qc.invalidateQueries({ queryKey: ["acomptes"] });
+    qc.invalidateQueries({ queryKey: ["workers"] });
+    toast.success("Supprimée");
+  };
+
+  return (
+    <div className="bg-muted/40 border rounded-xl p-6 space-y-4">
+      <h2 className="text-primary font-bold flex items-center gap-2">
+        <Search className="w-4 h-4" /> Filtrer l'Historique
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Nom</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Chercher..." className="h-10" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Du</Label>
+          <DateInput value={from} onChange={(e) => setFrom(e.target.value)} className="h-10" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Au</Label>
+          <DateInput value={to} onChange={(e) => setTo(e.target.value)} className="h-10" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
+          <Select value={type} onValueChange={(v: any) => setType(v)}>
+            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              <SelectItem value="acompte">Acompte</SelectItem>
+              <SelectItem value="dette">Dette</SelectItem>
+              <SelectItem value="reglement">Règlement</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={() => { setName(""); setFrom(""); setTo(""); setType("all"); }}>
+          <X className="w-4 h-4 mr-2" /> Effacer Filtres
+        </Button>
+        <Button onClick={() => window.print()} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Printer className="w-4 h-4 mr-2" /> Imprimer
+        </Button>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-800 text-white">
+              <tr>
+                <th className="p-3 text-left">Date</th>
+                <th className="p-3 text-left">Employé</th>
+                <th className="p-3 text-left">Type</th>
+                <th className="p-3 text-right">Montant (DA)</th>
+                <th className="p-3 text-left">Description</th>
+                <th className="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Aucune opération</td></tr>
+              ) : filtered.map((t) => (
                 <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="p-4 text-sm">{formatDateFR(t.transaction_date)}</td>
-                  <td className="p-4 font-medium">{(t as any).workers?.full_name ?? "—"}</td>
-                  <td className="p-4">
-                    {t.type === "add" ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><TrendingUp className="w-3 h-3" />Avance</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full"><TrendingDown className="w-3 h-3" />Remb.</span>
-                    )}
+                  <td className="p-3">{formatDateFR(t.transaction_date)}</td>
+                  <td className="p-3 font-semibold">{t.workers?.full_name ?? "—"}</td>
+                  <td className="p-3">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${TYPE_BADGE[t.type] || "bg-muted"}`}>
+                      {TYPE_LABEL[t.type] || t.type}
+                    </span>
                   </td>
-                  <td className="p-4 text-right font-semibold">{fmt(Number(t.amount))} DA</td>
-                  <td className="p-4 text-right text-sm text-muted-foreground">{fmt(Number(t.previous_balance))}</td>
-                  <td className="p-4 text-right text-sm font-medium">{fmt(Number(t.new_balance))}</td>
-                  <td className="p-4 text-sm text-muted-foreground max-w-[200px] truncate">{t.note ?? "—"}</td>
-                  <td className="p-4 text-right whitespace-nowrap">
-                    <Link to={`/acomptes/${t.id}`}><Button variant="ghost" size="sm"><Eye className="w-4 h-4" /></Button></Link>
-                    <Button variant="ghost" size="sm" onClick={() => { if (confirm("Supprimer cet acompte ?")) delMut.mutate(t.id); }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  <td className="p-3 text-right font-semibold">{fmt(Number(t.amount))}</td>
+                  <td className="p-3 text-muted-foreground max-w-md truncate">{t.note || "-"}</td>
+                  <td className="p-3 text-right whitespace-nowrap">
+                    <Link to={`/acomptes/${t.id}`}>
+                      <Button variant="ghost" size="sm" className="h-8 bg-blue-500 hover:bg-blue-600 text-white"><Eye className="w-3.5 h-3.5" /></Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={() => del(t.id)} className="h-8 ml-1 bg-red-500 hover:bg-red-600 text-white"><Trash2 className="w-3.5 h-3.5" /></Button>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====================== BILAN GÉNÉRAL ======================
+function BilanGeneral({
+  workers,
+  stats,
+  totals,
+}: {
+  workers: WorkerExt[];
+  stats: Map<string, { acompte: number; dette: number; reglement: number }>;
+  totals: { acompte: number; dette: number; reglement: number; reste: number };
+}) {
+  const qc = useQueryClient();
+
+  const rows = useMemo(() => {
+    return [...workers]
+      .map((w) => {
+        const s = stats.get(w.id) || { acompte: 0, dette: 0, reglement: 0 };
+        return { w, ...s, reste: s.acompte + s.dette - s.reglement };
+      })
+      .sort((a, b) => a.w.full_name.localeCompare(b.w.full_name));
+  }, [workers, stats]);
+
+  const exportJson = () => {
+    const data = {
+      exported_at: new Date().toISOString(),
+      workers: workers.map((w) => ({
+        id: w.id,
+        matricule: w.matricule,
+        full_name: w.full_name,
+        position: w.position,
+        monthly_retention: Number(w.monthly_retention || 0),
+      })),
+      stats: rows.map((r) => ({
+        matricule: r.w.matricule,
+        full_name: r.w.full_name,
+        total_acomptes: r.acompte,
+        total_dettes: r.dette,
+        total_reglements: r.reglement,
+        reste_a_payer: r.reste,
+      })),
+      totals,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bilan_acomptes_${todayStr()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Bilan exporté");
+  };
+
+  const importJson = () => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/json,.json";
+    inp.onchange = async () => {
+      const f = inp.files?.[0]; if (!f) return;
+      try {
+        const text = await f.text();
+        const data = JSON.parse(text);
+        const arr = Array.isArray(data) ? data : data.workers || [];
+        let added = 0;
+        for (const row of arr) {
+          const matricule = row.matricule || null;
+          const full_name = row.full_name || row.nom;
+          if (!full_name) continue;
+          const exists = workers.find((w) =>
+            (matricule && (w.matricule || "").toLowerCase() === String(matricule).toLowerCase()) ||
+            w.full_name.toLowerCase() === String(full_name).toLowerCase()
+          );
+          if (exists) continue;
+          await createWorker({ full_name, matricule, position: row.position || row.poste || null } as any);
+          added++;
+        }
+        qc.invalidateQueries({ queryKey: ["workers"] });
+        toast.success(`${added} employé(s) importé(s)`);
+      } catch (e: any) {
+        toast.error(e?.message || "JSON invalide");
+      }
+    };
+    inp.click();
+  };
+
+  const remiseAZero = async () => {
+    if (!confirm("⚠️ Supprimer TOUTES les opérations (acomptes, dettes, règlements) ? Cette action est irréversible.")) return;
+    if (!confirm("Confirmer la remise à zéro complète ?")) return;
+    const { error } = await (supabase as any).from("acompte_transactions").delete().not("id", "is", null);
+    if (error) return toast.error(error.message);
+    for (const w of workers) await refreshWorkerBalance(w.id);
+    qc.invalidateQueries({ queryKey: ["acomptes"] });
+    qc.invalidateQueries({ queryKey: ["workers"] });
+    toast.success("Remise à zéro effectuée");
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-primary font-bold flex items-center gap-2">
+        <BarChart3 className="w-4 h-4" /> Bilan Général
+      </h2>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card title="Total Acomptes" value={fmt(totals.acompte)} className="bg-amber-400 text-amber-950" />
+        <Card title="Total Dettes" value={fmt(totals.dette)} className="bg-red-500 text-white" />
+        <Card title="Total Règlements" value={fmt(totals.reglement)} className="bg-emerald-500 text-white" />
+        <Card title="Reste à Recouvrer" value={fmt(totals.reste)} className="bg-blue-500 text-white" />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={exportJson} className="bg-emerald-600 hover:bg-emerald-700 text-white"><Download className="w-4 h-4 mr-2" />Exporter (JSON)</Button>
+        <Button onClick={importJson} className="bg-blue-500 hover:bg-blue-600 text-white"><Upload className="w-4 h-4 mr-2" />Importer (JSON)</Button>
+        <Button onClick={remiseAZero} className="bg-red-500 hover:bg-red-600 text-white"><RotateCcw className="w-4 h-4 mr-2" />Remise à Zéro</Button>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-800 text-white">
+              <tr>
+                <th className="p-3 text-left">Matricule</th>
+                <th className="p-3 text-left">Employé</th>
+                <th className="p-3 text-right">Total Acomptes</th>
+                <th className="p-3 text-right">Total Dettes</th>
+                <th className="p-3 text-right">Total Règlements</th>
+                <th className="p-3 text-right">Reste à Payer</th>
+                <th className="p-3 text-center">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const solde = r.reste <= 0;
+                return (
+                  <tr key={r.w.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="p-3 text-muted-foreground">{r.w.matricule || "—"}</td>
+                    <td className="p-3 font-bold">{r.w.full_name}</td>
+                    <td className="p-3 text-right">{fmt(r.acompte)}</td>
+                    <td className="p-3 text-right">{fmt(r.dette)}</td>
+                    <td className="p-3 text-right text-emerald-600">{fmt(r.reglement)}</td>
+                    <td className={`p-3 text-right font-semibold ${solde ? "text-emerald-600" : "text-red-600"}`}>{fmt(Math.max(0, r.reste))}</td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${solde ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
+                        {solde ? "SOLDÉ" : "NON RÉGLÉ"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, value, className }: { title: string; value: string; className?: string }) {
+  return (
+    <div className={`rounded-xl p-5 ${className}`}>
+      <p className="text-xs uppercase opacity-90 font-medium">{title}</p>
+      <p className="text-2xl md:text-3xl font-bold mt-2">{value}</p>
+    </div>
+  );
+}
+
+// ====================== GESTION EMPLOYÉS ======================
+function GestionEmployes({ workers }: { workers: WorkerExt[] }) {
+  const qc = useQueryClient();
+  const [matricule, setMatricule] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [position, setPosition] = useState("");
+  const [search, setSearch] = useState("");
+
+  const list = useMemo(() => {
+    const s = search.toLowerCase();
+    return [...workers]
+      .filter((w) => !s || w.full_name.toLowerCase().includes(s) || (w.matricule || "").toLowerCase().includes(s) || (w.position || "").toLowerCase().includes(s))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [workers, search]);
+
+  const add = useMutation({
+    mutationFn: () => createWorker({ full_name: fullName.trim(), matricule: matricule.trim() || null, position: position.trim() || null } as any),
+    onSuccess: () => {
+      toast.success("Employé ajouté");
+      setMatricule(""); setFullName(""); setPosition("");
+      qc.invalidateQueries({ queryKey: ["workers"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur"),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => deleteWorker(id),
+    onSuccess: () => {
+      toast.success("Employé supprimé");
+      qc.invalidateQueries({ queryKey: ["workers"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur"),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-muted/40 border rounded-xl p-6">
+        <h3 className="text-primary font-bold flex items-center gap-2 mb-4">
+          <Plus className="w-4 h-4" /> Ajouter un employé
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Input placeholder="Matricule" value={matricule} onChange={(e) => setMatricule(e.target.value)} className="h-11" />
+          <Input placeholder="Nom et Prénom" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11" />
+          <Input placeholder="Poste" value={position} onChange={(e) => setPosition(e.target.value)} className="h-11" />
+          <Button onClick={() => fullName.trim() ? add.mutate() : toast.error("Nom requis")} className="h-11 bg-primary hover:bg-primary/90">Ajouter</Button>
+        </div>
+      </div>
+
+      <div className="bg-muted/40 border rounded-xl p-6 space-y-3">
+        <h3 className="text-primary font-bold flex items-center gap-2">
+          <Users className="w-4 h-4" /> Liste des employés ({workers.length})
+        </h3>
+        <Input placeholder="Rechercher un employé..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-10" />
+
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-zinc-800 text-white">
+                <tr>
+                  <th className="p-3 text-left">Matricule</th>
+                  <th className="p-3 text-left">Nom et Prénom</th>
+                  <th className="p-3 text-left">Poste</th>
+                  <th className="p-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((w) => (
+                  <tr key={w.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="p-3 text-muted-foreground">{w.matricule || "—"}</td>
+                    <td className="p-3 font-bold">{w.full_name}</td>
+                    <td className="p-3 text-muted-foreground uppercase">{w.position || "—"}</td>
+                    <td className="p-3 text-right">
+                      <Button size="sm" onClick={() => { if (confirm(`Supprimer ${w.full_name} ?`)) del.mutate(w.id); }} className="h-8 bg-red-500 hover:bg-red-600 text-white">X</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
