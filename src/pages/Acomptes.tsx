@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Wallet, TrendingUp, TrendingDown, Trash2, Eye, Filter } from "lucide-react";
 import { toast } from "sonner";
+import AcomptesImportExport from "@/components/AcomptesImportExport";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(n);
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -97,10 +98,12 @@ export default function Acomptes() {
           <h1 className="text-3xl font-bold tracking-tight">Acomptes</h1>
           <p className="text-muted-foreground mt-1">Gestion des avances sur salaire</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="w-4 h-4 mr-2" />Nouvel acompte</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <AcomptesImportExport />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="w-4 h-4 mr-2" />Nouvel acompte</Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader><DialogTitle>Nouvel acompte</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
@@ -148,7 +151,8 @@ export default function Acomptes() {
               <Button onClick={handleSubmit} disabled={createMut.isPending}>{createMut.isPending ? "..." : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
