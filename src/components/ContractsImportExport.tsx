@@ -226,11 +226,11 @@ export default function ContractsImportExport() {
 
   return (
     <>
-      <Button variant="outline" onClick={handleExport} className="gap-2">
-        <Download className="w-4 h-4" /> Exporter contrats
+      <Button onClick={() => setImportOpen(true)} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+        استيراد (Importer) <Upload className="w-4 h-4" />
       </Button>
-      <Button variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
-        <Upload className="w-4 h-4" /> Importer contrats
+      <Button onClick={handleExport} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+        تصدير (Exporter) <Download className="w-4 h-4" />
       </Button>
 
       <Dialog open={importOpen} onOpenChange={(v) => { if (!v) reset(); setImportOpen(v); }}>
