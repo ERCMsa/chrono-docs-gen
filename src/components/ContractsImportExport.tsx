@@ -105,18 +105,53 @@ export default function ContractsImportExport() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const findWorker = (matricule: string, fullName: string) => {
+  const findWorker = (matricule: string, fullName: string, cin: string) => {
     if (!workers) return null;
     const mat = matricule?.toString().trim().toLowerCase();
     const name = fullName?.toString().trim().toLowerCase();
+    const c = cin?.toString().trim().toLowerCase();
     if (mat) {
       const byMat = workers.find((w) => (w.matricule || "").toLowerCase() === mat);
       if (byMat) return byMat;
+    }
+    if (c) {
+      const byCin = workers.find((w) => (w.cin || "").toLowerCase() === c);
+      if (byCin) return byCin;
     }
     if (name) {
       return workers.find((w) => (w.full_name || "").toLowerCase() === name) || null;
     }
     return null;
+  };
+
+  // Map camelCase legacy keys -> snake_case keys used by the app
+  const CAMEL_TO_SNAKE: Record<string, string> = {
+    numContrat: "num_contrat", dateDebut: "date_debut", dureeMois: "duree_mois",
+    dateFin: "date_fin", dateSign: "date_sign", lieuSign: "lieu_sign",
+    periodeEssai: "periode_essai", poste: "poste",
+    dateNais: "date_nais", lieuNais: "lieu_nais", wilayaNais: "wilaya_nais",
+    cni: "cni", dateCni: "date_cni", wilayaCni: "wilaya_cni", communeCni: "commune_cni",
+    adresse: "adresse", wilayaAdr: "wilaya_adr", dateRes: "date_res",
+    tel: "tel", email: "email", salBase: "sal_base", salNet: "sal_net",
+  };
+
+  const normalizeContent = (row: any): Record<string, any> => {
+    // If row already has a content object, use it; otherwise treat row itself as the source
+    const src = row.content && typeof row.content === "object" ? row.content : row;
+    const content: Record<string, any> = {};
+    Object.keys(src).forEach((k) => {
+      if (["nom", "displayName", "id", "timestamp", "logoDataUrl", "avenant", "worker"].includes(k)) return;
+      const mapped = CAMEL_TO_SNAKE[k] || k;
+      let val = src[k];
+      if (mapped === "periode_essai") {
+        const s = String(val).toLowerCase();
+        val = ["false", "non", "no", "0"].includes(s) ? "false" : "true";
+      } else if (val !== null && val !== undefined) {
+        val = typeof val === "string" ? val : String(val);
+      }
+      content[mapped] = val;
+    });
+    return content;
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,21 +168,23 @@ export default function ContractsImportExport() {
         const ok: Array<{ worker_id: string; full_name: string; content: Record<string, any> }> = [];
         arr.forEach((row, i) => {
           const matricule = row.matricule || row.content?.worker?.matricule || "";
-          const fullName = row.full_name || row.content?.worker?.full_name || "";
-          if (!matricule && !fullName) {
-            errs.push(`Élément ${i + 1}: matricule ou full_name requis`);
+          const fullName = row.full_name || row.nom || row.displayName || row.content?.worker?.full_name || "";
+          const cin = row.cni || row.cin || row.content?.worker?.cin || "";
+          if (!matricule && !fullName && !cin) {
+            errs.push(`Élément ${i + 1}: matricule, nom ou cni requis`);
             return;
           }
-          const worker = findWorker(matricule, fullName);
+          const worker = findWorker(matricule, fullName, cin);
           if (!worker) {
-            errs.push(`Élément ${i + 1}: Employé introuvable (${matricule || fullName})`);
+            errs.push(`Élément ${i + 1}: Employé introuvable (${matricule || cin || fullName})`);
             return;
           }
-          const content = { ...(row.content || {}), worker };
+          const content = { ...normalizeContent(row), worker };
           ok.push({ worker_id: worker.id, full_name: worker.full_name, content });
         });
         setParsedRows(ok);
         setErrors(errs);
+
       } catch {
         toast.error("Fichier JSON invalide");
       }
