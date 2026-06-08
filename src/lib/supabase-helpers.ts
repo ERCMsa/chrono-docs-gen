@@ -103,43 +103,48 @@ export async function getAcomptes(workerId?: string) {
   return data as (AcompteTransaction & { workers?: { full_name: string; matricule: string | null; department: string | null } })[];
 }
 
-export async function createAcompte(params: { worker_id: string; type: "add" | "subtract"; amount: number; transaction_date: string; note?: string }) {
-  // Fetch current balance
-  const { data: worker, error: wErr } = await supabase.from("workers").select("current_balance" as any).eq("id", params.worker_id).single();
-  if (wErr) throw wErr;
-  const previous = Number((worker as any)?.current_balance ?? 0);
-  const delta = params.type === "add" ? params.amount : -params.amount;
-  const next = previous + delta;
-  if (next < 0) throw new Error("Le solde ne peut pas être négatif");
+export type AcompteType = "acompte" | "dette" | "reglement";
+
+export async function createAcompte(params: { worker_id: string; type: AcompteType | "add" | "subtract"; amount: number; transaction_date: string; note?: string }) {
+  // Backward-compat mapping
+  const type: AcompteType = params.type === "add" ? "acompte" : params.type === "subtract" ? "reglement" : params.type;
 
   const { data: tx, error } = await (supabase as any).from("acompte_transactions").insert({
     worker_id: params.worker_id,
-    type: params.type,
+    type,
     amount: params.amount,
-    previous_balance: previous,
-    new_balance: next,
     transaction_date: params.transaction_date,
     note: params.note ?? null,
   }).select().single();
   if (error) throw error;
 
-  const { error: uErr } = await supabase.from("workers").update({ current_balance: next } as any).eq("id", params.worker_id);
-  if (uErr) throw uErr;
-
+  // Refresh worker current_balance = total acomptes + dettes - reglements
+  await refreshWorkerBalance(params.worker_id);
   return tx as AcompteTransaction;
 }
 
+export async function refreshWorkerBalance(workerId: string) {
+  const { data, error } = await (supabase as any)
+    .from("acompte_transactions")
+    .select("type, amount")
+    .eq("worker_id", workerId);
+  if (error) throw error;
+  let bal = 0;
+  (data || []).forEach((t: any) => {
+    const a = Number(t.amount) || 0;
+    if (t.type === "acompte" || t.type === "dette") bal += a;
+    else if (t.type === "reglement") bal -= a;
+  });
+  await supabase.from("workers").update({ current_balance: Math.max(0, bal) } as any).eq("id", workerId);
+}
+
 export async function deleteAcompte(id: string) {
-  // Reverse the balance impact
   const { data: tx, error } = await (supabase as any).from("acompte_transactions").select("*").eq("id", id).single();
   if (error) throw error;
-  const t = tx as AcompteTransaction;
-  const { data: worker } = await supabase.from("workers").select("current_balance" as any).eq("id", t.worker_id).single();
-  const current = Number((worker as any)?.current_balance ?? 0);
-  const reverted = t.type === "add" ? current - t.amount : current + t.amount;
   await (supabase as any).from("acompte_transactions").delete().eq("id", id);
-  await supabase.from("workers").update({ current_balance: Math.max(0, reverted) } as any).eq("id", t.worker_id);
+  if (tx?.worker_id) await refreshWorkerBalance(tx.worker_id);
 }
+
 
 // ===== Absences =====
 export type Absence = {
