@@ -17,7 +17,7 @@ export default function Documents() {
   const deleteMutation = useMutation({
     mutationFn: deleteDocument,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] }); queryClient.invalidateQueries({ queryKey: ["workers-with-contract"] });
       toast.success("Document supprimé");
     },
   });

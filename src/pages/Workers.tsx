@@ -1,7 +1,7 @@
 import { DateInput } from "@/components/ui/date-input";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getWorkers, createWorker, type WorkerInsert } from "@/lib/supabase-helpers";
+import { getWorkers, createWorker, getWorkerIdsWithContract, type WorkerInsert } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ export default function Workers() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [importOpen, setImportOpen] = useState(false);
   const { data: workers, isLoading } = useQuery({ queryKey: ["workers"], queryFn: getWorkers });
+  const { data: contractWorkerIds } = useQuery({ queryKey: ["workers-with-contract"], queryFn: getWorkerIdsWithContract });
 
   const DATE_FIELDS = ["date_naissance", "hire_date", "date_debut_contrat", "date_fin_contrat", "date_demission"];
   const sanitize = (obj: Record<string, any>) => {
@@ -278,7 +279,7 @@ export default function Workers() {
       ) : filtered && filtered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {filtered.map((w) => {
-            const status = getContractStatus((w as any).date_fin_contrat);
+            const hasContract = contractWorkerIds?.has(w.id) ?? false;
             return (
               <Link key={w.id} to={`/workers/${w.id}`} className="block group">
                 <div className="bg-card border rounded-xl p-5 h-full flex flex-col hover:shadow-md hover:border-primary/40 transition-all cursor-pointer">
@@ -308,24 +309,13 @@ export default function Workers() {
                         <XCircle className="w-3 h-3" /> Démission · {formatDateFR((w as any).date_demission)}
                       </span>
                     )}
-                    {status.kind === "expired" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-red-900/15 text-red-900 dark:text-red-300 border border-red-900/30">
-                        <XCircle className="w-3 h-3" /> Contrat expiré
+                    {hasContract ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300 border border-green-200 dark:border-green-900/40">
+                        ✅ Actif
                       </span>
-                    )}
-                    {status.kind === "expiring" && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/30">
-                        <AlertTriangle className="w-3 h-3" /> Expire dans {status.daysLeft}j
-                      </span>
-                    )}
-                    {status.kind === "active" && (
-                      <span className="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300">
-                        Actif · fin {formatDateFR(status.endDate)}
-                      </span>
-                    )}
-                    {status.kind === "none" && (
-                      <span className="inline-flex items-center text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                        Pas de contrat
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-muted text-muted-foreground border">
+                        <AlertTriangle className="w-3 h-3" /> Pas de contrat
                       </span>
                     )}
 

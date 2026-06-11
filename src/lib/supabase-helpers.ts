@@ -14,6 +14,25 @@ export async function getWorkers() {
   return data;
 }
 
+export async function getWorkerIdsWithContract(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("documents")
+    .select("worker_id")
+    .eq("document_type", "contract");
+  if (error) throw error;
+  return new Set((data ?? []).map((d: any) => d.worker_id).filter(Boolean));
+}
+
+export async function workerHasContract(workerId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("documents")
+    .select("id", { count: "exact", head: true })
+    .eq("document_type", "contract")
+    .eq("worker_id", workerId);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export async function getWorker(id: string) {
   const { data, error } = await supabase.from("workers").select("*").eq("id", id).single();
   if (error) throw error;

@@ -335,7 +335,7 @@ export default function ContractsImportExport() {
     }
     setImporting(false);
     setResult({ success, failed });
-    queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ["documents"] }); queryClient.invalidateQueries({ queryKey: ["workers-with-contract"] });
     queryClient.invalidateQueries({ queryKey: ["workers"] });
     if (success > 0) toast.success(`${success} contrat(s) importé(s)`);
     if (failed > 0) toast.error(`${failed} contrat(s) non importé(s)`);

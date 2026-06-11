@@ -160,6 +160,7 @@ export default function WorkerDetail() {
 
   const isBon = (type: string) => type === "bon_sortie" || type === "bon_rentree";
   const contractStatus = getContractStatus((worker as any).date_fin_contrat);
+  const hasContractDoc = (documents ?? []).some((d: any) => d.document_type === "contract");
 
   return (
     <div className="space-y-6">
@@ -380,24 +381,18 @@ export default function WorkerDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Contract status banner */}
-      {contractStatus.kind === "expired" && (
-        <div className="rounded-xl border-2 border-red-900/40 bg-red-900/10 p-4 flex items-center gap-3">
-          <XCircle className="w-5 h-5 text-red-900 dark:text-red-300 shrink-0" />
-          <div>
-            <p className="font-semibold text-red-900 dark:text-red-300">Contrat expiré</p>
-            <p className="text-sm text-red-900/80 dark:text-red-300/80">Expiré depuis le {formatDateFR(contractStatus.endDate)} ({contractStatus.daysOver} jour{contractStatus.daysOver > 1 ? "s" : ""}).</p>
-          </div>
-        </div>
-      )}
-      {contractStatus.kind === "expiring" && (
-        <div className="rounded-xl border-2 border-destructive/40 bg-destructive/10 p-4 flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-          <p className="font-semibold text-destructive">
-            Contrat bientôt expiré — à renouveler avant le {formatDateFR(contractStatus.endDate)}
-          </p>
-        </div>
-      )}
+      {/* Contract status badge (derived from documents) */}
+      <div>
+        {hasContractDoc ? (
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300 border border-green-200 dark:border-green-900/40">
+            ✅ Actif — Contrat en cours
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full bg-muted text-muted-foreground border">
+            <AlertTriangle className="w-4 h-4" /> Pas de contrat
+          </span>
+        )}
+      </div>
 
       <div className="bg-card border rounded-xl p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
         {[

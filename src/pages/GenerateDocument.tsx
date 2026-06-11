@@ -292,7 +292,7 @@ export default function GenerateDocument() {
         content: { ...formData, worker: selectedWorker },
       }),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] }); queryClient.invalidateQueries({ queryKey: ["workers-with-contract"] });
       toast.success("Document sauvegardé");
       navigate(`/documents/${data.id}`);
     },
