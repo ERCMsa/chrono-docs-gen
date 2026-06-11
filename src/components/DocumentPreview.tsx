@@ -1,5 +1,6 @@
 import type { Worker } from "@/lib/supabase-helpers";
 import logoErcm from "@/assets/logo-ercm.png";
+import ContractPreview from "./ContractPreview"
 
 interface Props {
   type: "contract" | "bon_sortie" | "bon_rentree" | "avertissement";
@@ -173,35 +174,9 @@ export default function DocumentPreview({ type, worker, data, validationStatus }
     ),
 
     contract: (
-      <div style={pageStyle}>
-        <DocHeader title="CONTRAT DE TRAVAIL" subtitle={data.contract_type === "CDD" ? "Contrat à Durée Déterminée" : "Contrat à Durée Indéterminée"} />
-        <p style={{ textAlign: "right", fontSize: 13, color: "#666", marginBottom: 24 }}>Fait le {today}</p>
-
-        <SectionTitle>Les parties</SectionTitle>
-        <p style={{ marginBottom: 6 }}><strong>Entre :</strong> La société <strong>ERCM SA</strong>, ci-après dénommée "l'Employeur"</p>
-        <p style={{ marginBottom: 16 }}><strong>Et :</strong></p>
-        <Field label="Nom complet" value={worker.full_name} />
-        <Field label="CIN" value={worker.cin} />
-        <Field label="Adresse" value={worker.address} />
-
-        <SectionTitle>Conditions du contrat</SectionTitle>
-        <Field label="Poste" value={worker.position} />
-        <Field label="Département" value={worker.department} />
-        <Field label="Date de début" value={data.start_date} />
-        {data.end_date && <Field label="Date de fin" value={data.end_date} />}
-        <Field label="Rémunération" value={data.salary ? `${data.salary} DH/mois` : undefined} />
-        <Field label="Horaires" value={data.work_hours} />
-
-        {data.notes && (
-          <>
-            <SectionTitle>Clauses supplémentaires</SectionTitle>
-            <p style={{ fontSize: 13, color: "#444", whiteSpace: "pre-wrap" }}>{data.notes}</p>
-          </>
-        )}
-
-        <DocSignature left="L'Employeur" right="L'Employé(e)" />
-        <DocFooter />
-      </div>
+       <div id="document-preview">
+          <ContractPreview worker={worker} data={data} lang='ar' logoDataUrl={data.logoDataUrl} />
+        </div>
     ),
 
     avertissement: (
