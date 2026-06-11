@@ -160,6 +160,7 @@ export default function WorkerDetail() {
 
   const isBon = (type: string) => type === "bon_sortie" || type === "bon_rentree";
   const contractStatus = getContractStatus((worker as any).date_fin_contrat);
+  const hasContractDoc = (documents ?? []).some((d: any) => d.document_type === "contract");
 
   return (
     <div className="space-y-6">
